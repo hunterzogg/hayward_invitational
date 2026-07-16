@@ -368,6 +368,60 @@ tbody tr:hover { background: rgba(212, 175, 55, 0.09); }
 
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* Pin the first column (usually "Player"/"Hole") while the rest of a wide
+   table scrolls horizontally on mobile, so you never lose track of which
+   row you're looking at. */
+.table-wrap table th:first-child,
+.table-wrap table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.09);
+}
+.table-wrap table th:first-child { background: var(--masters-green-dark); z-index: 3; }
+.table-wrap table td:first-child { background: #fbf8ee; }
+.table-wrap table tbody tr:nth-child(even) td:first-child { background: #f2f0e1; }
+.table-wrap table tbody tr:hover td:first-child { background: #f6ecc9; }
+
+/* The rankings table leads with a narrow Rank column, so the Player name
+   (2nd column) also needs to stay pinned — otherwise scrolling right hides
+   the one thing you're trying to track. */
+#rankings-table th:first-child,
+#rankings-table td:first-child { width: 56px; }
+#rankings-table th:nth-child(2),
+#rankings-table td:nth-child(2) {
+  position: sticky;
+  left: 56px;
+  z-index: 2;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.09);
+}
+#rankings-table th:nth-child(2) { background: var(--masters-green-dark); z-index: 3; }
+#rankings-table td:nth-child(2) { background: #fbf8ee; }
+#rankings-table tbody tr:nth-child(even) td:nth-child(2) { background: #f2f0e1; }
+#rankings-table tbody tr:hover td:nth-child(2) { background: #f6ecc9; }
+
+/* ---------- Sortable table headers ---------- */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--white); }
+th.sortable .sort-arrow { display: inline-block; width: 0.9em; opacity: 0.5; }
+th.sortable.sorted .sort-arrow { opacity: 1; color: var(--gold); }
+
+/* ---------- Vibes / Recent Change indicators ---------- */
+.vibes-star { color: var(--gold-dark); margin-left: 3px; }
+.change-indicator { font-weight: 700; font-variant-numeric: tabular-nums; }
+.change-indicator.up { color: var(--masters-green); }
+.change-indicator.down { color: var(--gold-dark); }
+.pill-change.new {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(15,81,50,0.12);
+  color: var(--masters-green-dark);
+}
+
 .rank-badge {
   display: inline-flex;
   align-items: center;

@@ -72,19 +72,19 @@ function findLegacy(formalName) {
   return HI_DATA.legacyRecords.find(r => r.name === formalName);
 }
 
-function captainCard(captainKey, formalName, teamClass, teamLabel) {
+function captainCard(captainKey, teamClass, teamLabel) {
   const c = HI_DATA.captains[captainKey];
   const p = findPlayer(c.name);
-  const legacy = findLegacy(formalName);
+  const legacy = findLegacy(c.name);
   const trend = HI_DATA.historicalAvg[c.name] || {};
 
   return `
   <div class="card">
     <div style="display:flex; align-items:center; gap:16px;">
-      ${c.logo ? `<img src="${c.logo}" alt="${c.full} team photo" style="width:72px; height:72px; border-radius:50%; object-fit:cover; object-position:center top; border:3px solid var(--gold); flex-shrink:0;">` : ""}
+      ${c.logo ? `<img src="${c.logo}" alt="${c.name} team photo" style="width:72px; height:72px; border-radius:50%; object-fit:cover; object-position:center top; border:3px solid var(--gold); flex-shrink:0;">` : ""}
       <div>
         <div class="pill ${teamClass}">${teamLabel}</div>
-        <h2 style="margin-top:8px; margin-bottom:0;">${c.full}</h2>
+        <h2 style="margin-top:8px; margin-bottom:0;">${c.name}</h2>
       </div>
     </div>
 
@@ -132,8 +132,8 @@ function captainCard(captainKey, formalName, teamClass, teamLabel) {
 }
 
 document.getElementById("captain-cards").innerHTML =
-  captainCard("team1", "Hagan, M.", "team1", "Captain") +
-  captainCard("team2", "Greenblat, E.", "team2", "Captain");
+  captainCard("team1", "team1", "Captain") +
+  captainCard("team2", "team2", "Captain");
 </script>
 
 </body>

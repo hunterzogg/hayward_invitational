@@ -45,19 +45,21 @@
             <tr>
               <th>Rank</th>
               <th>Player</th>
-              <th class="num">Avg (All)</th>
+              <th class="num sortable" data-sort="avgAll">Avg (All) <span class="sort-arrow"></span></th>
               <th class="num">Avg (L3)</th>
               <th class="num">Avg (L5)</th>
               <th class="num">Low</th>
               <th class="num">High</th>
               <th class="num">Volatility</th>
+              <th class="num sortable" data-sort="vibes">Vibes <span class="sort-arrow"></span></th>
+              <th class="num">Recent Change</th>
               <th>Form</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="muted" style="font-size:0.82rem; margin-top:10px;">Volatility = high score minus low score this season. "Form" shows every logged round this year, oldest to newest.</p>
+      <p class="muted" style="font-size:0.82rem; margin-top:10px;">Volatility = high score minus low score this season. "Form" shows every logged round this year, oldest to newest. "Vibes" is a purely subjective 0&ndash;10 rating, not derived from performance. "Recent Change" is movement in the power rankings (among currently-participating players) since the last time this data was published. Click "Avg (All)" or "Vibes" to sort.</p>
     </div>
 
     <div class="section">
@@ -74,7 +76,7 @@
 
     <div class="section">
       <div class="section-title"><h2>Career Legacy Records</h2></div>
-      <p class="muted">All-time records since the Invitational began in 2024, from the tournament's historical archive. Note: names here are recorded formally (Last, First initial) and are not cross-matched to this season's nicknames above.</p>
+      <p class="muted">All-time records since the Invitational began in 2024, from the tournament's historical archive. Covers 2024–2025 only, so newer players show 0 years played.</p>
       <div class="table-wrap">
         <table id="legacy-table">
           <thead>
@@ -112,37 +114,97 @@
   el.innerHTML = `<span class="dot"></span>${fresh ? "Fresh data — u" : "U"}pdated ${formatted}`;
 })();
 
+// "Recent Change" is rank movement among real (non-placeholder) players only,
+// so the fictitious TBD slot never counts as a rival to move up/down against.
+const realPlayersByAvg = HI_DATA.players2026
+  .filter(p => !p.isPlaceholder)
+  .slice()
+  .sort((a, b) => (a.avgAll ?? Infinity) - (b.avgAll ?? Infinity));
+const realRankOf = new Map(realPlayersByAvg.map((p, i) => [p.name, i + 1]));
+
+function formCell(p) {
+  if (!p.rounds.length) return `<span class="muted">no rounds yet</span>`;
+  const rMin = Math.min(...p.rounds);
+  const rMax = Math.max(...p.rounds);
+  const span = rMax - rMin || 1;
+  const barMin = 6, barMax = 26;
+  return `<div style="display:flex; gap:3px; align-items:flex-end; height:${barMax}px;">` +
+    p.rounds.map(r => {
+      const h = barMin + ((r - rMin) / span) * (barMax - barMin);
+      const color = r <= p.avgAll ? "var(--masters-green)" : "var(--gold)";
+      return `<div title="${r}" style="width:5px; height:${h}px; background:${color}; border-radius:1px;"></div>`;
+    }).join("") + `</div>`;
+}
+
+function vibesCell(p) {
+  if (p.vibes == null) return `<span class="muted">—</span>`;
+  const star = p.vibes >= 10 ? `<span class="vibes-star">&#9733;</span>` : "";
+  return `${p.vibes.toFixed(1)}${star}`;
+}
+
+function changeCell(p) {
+  if (p.isPlaceholder) return `<span class="muted">—</span>`;
+  if (p.prevRank == null) return `<span class="pill-change new">New</span>`;
+  const delta = p.prevRank - realRankOf.get(p.name);
+  if (delta === 0) return `<span class="muted">No change</span>`;
+  const cls = delta > 0 ? "up" : "down";
+  const arrow = delta > 0 ? "&#9650;" : "&#9660;";
+  return `<span class="change-indicator ${cls}">${arrow} ${Math.abs(delta)}</span>`;
+}
+
 const rankBody = document.querySelector("#rankings-table tbody");
-HI_DATA.players2026.forEach(p => {
-  const badgeClass = p.rank <= 3 ? "rank-badge gold" : "rank-badge";
-  let form;
-  if (p.rounds.length) {
-    const rMin = Math.min(...p.rounds);
-    const rMax = Math.max(...p.rounds);
-    const span = rMax - rMin || 1;
-    const barMin = 6, barMax = 26;
-    form = `<div style="display:flex; gap:3px; align-items:flex-end; height:${barMax}px;">` +
-      p.rounds.map(r => {
-        const h = barMin + ((r - rMin) / span) * (barMax - barMin);
-        const color = r <= p.avgAll ? "var(--masters-green)" : "var(--gold)";
-        return `<div title="${r}" style="width:5px; height:${h}px; background:${color}; border-radius:1px;"></div>`;
-      }).join("") + `</div>`;
+const sortState = { key: null, dir: "asc" };
+
+function renderRankings() {
+  const rows = HI_DATA.players2026.slice();
+  if (sortState.key) {
+    rows.sort((a, b) => {
+      const va = a[sortState.key] ?? (sortState.dir === "asc" ? Infinity : -Infinity);
+      const vb = b[sortState.key] ?? (sortState.dir === "asc" ? Infinity : -Infinity);
+      return sortState.dir === "asc" ? va - vb : vb - va;
+    });
   } else {
-    form = `<span class="muted">no rounds yet</span>`;
+    rows.sort((a, b) => (a.avgAll ?? Infinity) - (b.avgAll ?? Infinity));
   }
 
-  rankBody.innerHTML += `<tr>
-    <td><span class="${badgeClass}">${p.rank}</span></td>
-    <td><strong>${p.name}</strong></td>
-    <td class="num">${p.avgAll ?? "—"}</td>
-    <td class="num">${p.avgLast3 ?? "—"}</td>
-    <td class="num">${p.avgLast5 ?? "—"}</td>
-    <td class="num">${p.low ?? "—"}</td>
-    <td class="num">${p.high ?? "—"}</td>
-    <td class="num">${p.volatility ?? "—"}</td>
-    <td>${form}</td>
-  </tr>`;
+  rankBody.innerHTML = rows.map(p => {
+    const badgeClass = p.rank <= 3 ? "rank-badge gold" : "rank-badge";
+    return `<tr>
+      <td><span class="${badgeClass}">${p.rank}</span></td>
+      <td><strong>${p.name}</strong></td>
+      <td class="num">${p.avgAll ?? "—"}</td>
+      <td class="num">${p.avgLast3 ?? "—"}</td>
+      <td class="num">${p.avgLast5 ?? "—"}</td>
+      <td class="num">${p.low ?? "—"}</td>
+      <td class="num">${p.high ?? "—"}</td>
+      <td class="num">${p.volatility ?? "—"}</td>
+      <td class="num">${vibesCell(p)}</td>
+      <td class="num">${changeCell(p)}</td>
+      <td>${formCell(p)}</td>
+    </tr>`;
+  }).join("");
+}
+
+document.querySelectorAll("#rankings-table th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.getAttribute("data-sort");
+    if (sortState.key === key) {
+      sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+    } else {
+      sortState.key = key;
+      sortState.dir = key === "vibes" ? "desc" : "asc"; // best-first default per column
+    }
+    document.querySelectorAll("#rankings-table th.sortable").forEach(h => {
+      h.classList.remove("sorted");
+      h.querySelector(".sort-arrow").textContent = "";
+    });
+    th.classList.add("sorted");
+    th.querySelector(".sort-arrow").textContent = sortState.dir === "asc" ? "▲" : "▼";
+    renderRankings();
+  });
 });
+
+renderRankings();
 
 const trendBody = document.querySelector("#trend-table tbody");
 Object.keys(HI_DATA.historicalAvg).forEach(name => {

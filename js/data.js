@@ -15,86 +15,115 @@ const HI_DATA = {
   // data — it drives the "last updated" indicator on the Power Rankings page.
   scoresUpdated: "2026-07-16",
 
+  // Bump this whenever players2026 prevRank snapshots are refreshed (i.e.
+  // whenever rank/vibes data is republished) — drives future rank-movement
+  // recalculation. See the "Recent Change" note above players2026.
+  rankingsUpdated: "2026-07-16",
+
   captains: {
-    team1: { name: "Hagan", full: "M. Hagan", color: "green", logo: "img/team-hagan-logo.jpg" },
-    team2: { name: "Green", full: "E. Greenblat", color: "gold", logo: "img/team-greenblat-logo.jpg" },
+    // `teamLabel` is the short surname used for team branding ("Team Hagan")
+    // throughout the draft/pairing UI. `name` is the standardized full
+    // display name (F. Last) and MUST exactly match that player's `name`
+    // in players2026 below, since draft.js looks players up by this value.
+    team1: { teamLabel: "Hagan", name: "M. Hagan", color: "green", logo: "img/team-hagan-logo.jpg" },
+    team2: { teamLabel: "Greenblat", name: "E. Greenblat", color: "gold", logo: "img/team-greenblat-logo.jpg" },
   },
 
   // Current-season (2026) power rankings, pulled from the "2026" sheet's
   // "New Rank" table. Scores are full-round gross scores (18 holes).
+  //
+  // Names are standardized site-wide as "F. Last" (first initial + last
+  // name), confirmed directly by the user — see Assets/handoff.md for the
+  // nickname-to-full-name mapping this replaced.
+  //
+  // `vibes`: a 0-10 subjective "vibes" score, supplied directly by the user
+  // (not derived from any performance data).
+  //
+  // `prevRank`: this player's rank the last time rankings were published,
+  // counted only among real (non-placeholder) players, 1-19. Used to compute
+  // the "Recent Change" column (prevRank - current real-players-only rank).
+  // When you refresh scores/ranks in the future, set each player's
+  // `prevRank` to their rank AS OF THIS CURRENT snapshot (i.e. shift the
+  // current `rank` values into `prevRank` before overwriting `rank`/scores
+  // with the new data) — that's what makes next time's "Recent Change"
+  // column correct. TBD has no prevRank (new to the list).
   players2026: [
-    { rank: 1, name: "Brent", avgAll: 75.9, avgLast3: 76, avgLast5: 79, high: 93, low: 68, volatility: 25, rounds: [77,77,74,74,93,73,78,82,79,76,68,73,78,76,76,71,70,75,71,77] },
-    { rank: 2, name: "Glen", avgAll: 81.7, avgLast3: 83, avgLast5: 84.8, high: 90, low: 76, volatility: 14, rounds: [82,78,89,90,85,78,78,79,76] },
-    { rank: 3, name: "Goetz", avgAll: 83.1, avgLast3: 82.3, avgLast5: 81.8, high: 87, low: 80, volatility: 7, rounds: [80,80,87,80,82,86,81,86,87,82] },
-    { rank: 4, name: "Luke G", avgAll: 86.8, avgLast3: 85.3, avgLast5: 85.4, high: 94, low: 83, volatility: 11, rounds: [88,85,83,83,88,85,89,85,94,83,86,92] },
-    { rank: 5, name: "Cedar", avgAll: 87, avgLast3: 85.7, avgLast5: 87.6, high: 93, low: 82, volatility: 11, rounds: [86,89,82,88,93,84] },
-    { rank: 6, name: "Stover", avgAll: 88.5, avgLast3: 89.7, avgLast5: 87.8, high: 96, low: 83, volatility: 13, rounds: [95,87,87,84,86,92,83,90,89,89,96,87,88,86] },
-    { rank: 7, name: "Drew G", avgAll: 90.5, avgLast3: 90.5, avgLast5: 90.5, high: 92, low: 89, volatility: 3, rounds: [92,89] },
-    { rank: 8, name: "Jolm", avgAll: 90.7, avgLast3: 90.3, avgLast5: 89.8, high: 105, low: 82, volatility: 23, rounds: [93,87,91,89,89,83,83,85,88,92,96,94,85,105,95,102,91,92,96,87,82,91] },
-    { rank: 9, name: "Chad", avgAll: 92.4, avgLast3: 95, avgLast5: 92, high: 103, low: 83, volatility: 20, rounds: [91,91,103,92,83,98,92,89] },
-    { rank: 10, name: "Hagan", avgAll: 93, avgLast3: 93.7, avgLast5: 93, high: 96, low: 91, volatility: 5, rounds: [94,91,96,91] },
-    { rank: 11, name: "Green", avgAll: 93.8, avgLast3: 94.3, avgLast5: 93.8, high: 99, low: 91, volatility: 8, rounds: [91,93,99,92] },
-    { rank: 12, name: "Urban", avgAll: 94.8, avgLast3: 98.3, avgLast5: 94.8, high: 101, low: 89, volatility: 12, rounds: [94,101,100,90,89] },
-    { rank: 13, name: "Joe P", avgAll: 95.8, avgLast3: 94.3, avgLast5: 95.8, high: 100, low: 93, volatility: 7, rounds: [96,93,94,100] },
-    { rank: 14, name: "Jackie", avgAll: 102.7, avgLast3: 101, avgLast5: 101.6, high: 108, low: 98, volatility: 10, rounds: [100,105,98,99,106,108] },
-    { rank: 15, name: "Joedogg", avgAll: 103, avgLast3: 103, avgLast5: 103, high: 104, low: 102, volatility: 2, rounds: [102,104] },
-    { rank: 16, name: "Luke A", avgAll: 105, avgLast3: 105, avgLast5: 105, high: 107, low: 101, volatility: 6, rounds: [101,107,107] },
-    { rank: 17, name: "TBD", avgAll: 109, avgLast3: 109, avgLast5: 109, high: 118, low: 100, volatility: 18, rounds: [], isPlaceholder: true },
-    { rank: 18, name: "Zogg", avgAll: 110.3, avgLast3: 110.3, avgLast5: 110.3, high: 121, low: 97, volatility: 24, rounds: [121,113,97] },
-    { rank: 19, name: "Munch", avgAll: 116, avgLast3: 116, avgLast5: 116, high: 120, low: 112, volatility: 8, rounds: [120,112] },
-    { rank: 20, name: "Jase", avgAll: null, avgLast3: null, avgLast5: null, high: null, low: null, volatility: null, rounds: [] },
+    { rank: 1, name: "B. Prodahl", avgAll: 75.9, avgLast3: 76, avgLast5: 79, high: 93, low: 68, volatility: 25, vibes: 8.7, prevRank: 1, rounds: [77,77,74,74,93,73,78,82,79,76,68,73,78,76,76,71,70,75,71,77] },
+    { rank: 2, name: "G. Prodahl", avgAll: 81.7, avgLast3: 83, avgLast5: 84.8, high: 90, low: 76, volatility: 14, vibes: 5.2, prevRank: 2, rounds: [82,78,89,90,85,78,78,79,76] },
+    { rank: 3, name: "N. Goetz", avgAll: 83.1, avgLast3: 82.3, avgLast5: 81.8, high: 87, low: 80, volatility: 7, vibes: 8.3, prevRank: 3, rounds: [80,80,87,80,82,86,81,86,87,82] },
+    { rank: 4, name: "L. Goetz", avgAll: 86.8, avgLast3: 85.3, avgLast5: 85.4, high: 94, low: 83, volatility: 11, vibes: 7.1, prevRank: 5, rounds: [88,85,83,83,88,85,89,85,94,83,86,92] },
+    { rank: 5, name: "C. Palaia", avgAll: 87, avgLast3: 85.7, avgLast5: 87.6, high: 93, low: 82, volatility: 11, vibes: 3.8, prevRank: 4, rounds: [86,89,82,88,93,84] },
+    { rank: 6, name: "M. Stover", avgAll: 88.5, avgLast3: 89.7, avgLast5: 87.8, high: 96, low: 83, volatility: 13, vibes: 10.0, prevRank: 6, rounds: [95,87,87,84,86,92,83,90,89,89,96,87,88,86] },
+    { rank: 7, name: "D. Goetz", avgAll: 90.5, avgLast3: 90.5, avgLast5: 90.5, high: 92, low: 89, volatility: 3, vibes: 5.0, prevRank: 7, rounds: [92,89] },
+    { rank: 8, name: "J. Olmanson", avgAll: 90.7, avgLast3: 90.3, avgLast5: 89.8, high: 105, low: 82, volatility: 23, vibes: 8.8, prevRank: 8, rounds: [93,87,91,89,89,83,83,85,88,92,96,94,85,105,95,102,91,92,96,87,82,91] },
+    { rank: 9, name: "C. Musser", avgAll: 92.4, avgLast3: 95, avgLast5: 92, high: 103, low: 83, volatility: 20, vibes: 1.8, prevRank: 9, rounds: [91,91,103,92,83,98,92,89] },
+    { rank: 10, name: "M. Hagan", avgAll: 93, avgLast3: 93.7, avgLast5: 93, high: 96, low: 91, volatility: 5, vibes: 6.8, prevRank: 10, rounds: [94,91,96,91] },
+    { rank: 11, name: "E. Greenblat", avgAll: 93.8, avgLast3: 94.3, avgLast5: 93.8, high: 99, low: 91, volatility: 8, vibes: 6.4, prevRank: 11, rounds: [91,93,99,92] },
+    { rank: 12, name: "A. Urban", avgAll: 94.8, avgLast3: 98.3, avgLast5: 94.8, high: 101, low: 89, volatility: 12, vibes: 2.8, prevRank: 12, rounds: [94,101,100,90,89] },
+    { rank: 13, name: "J. Pfaffinger", avgAll: 95.8, avgLast3: 94.3, avgLast5: 95.8, high: 100, low: 93, volatility: 7, vibes: 5.7, prevRank: 13, rounds: [96,93,94,100] },
+    { rank: 14, name: "J. Conlin", avgAll: 102.7, avgLast3: 101, avgLast5: 101.6, high: 108, low: 98, volatility: 10, vibes: 5.5, prevRank: 14, rounds: [100,105,98,99,106,108] },
+    { rank: 15, name: "J. Larson", avgAll: 103, avgLast3: 103, avgLast5: 103, high: 104, low: 102, volatility: 2, vibes: 6.0, prevRank: 15, rounds: [102,104] },
+    { rank: 16, name: "L. Ainsworth", avgAll: 105, avgLast3: 105, avgLast5: 105, high: 107, low: 101, volatility: 6, vibes: 5.8, prevRank: 16, rounds: [101,107,107] },
+    { rank: 17, name: "TBD", avgAll: 109, avgLast3: 109, avgLast5: 109, high: 118, low: 100, volatility: 18, vibes: null, prevRank: null, rounds: [], isPlaceholder: true },
+    { rank: 18, name: "H. Zogg", avgAll: 110.3, avgLast3: 110.3, avgLast5: 110.3, high: 121, low: 97, volatility: 24, vibes: 8.3, prevRank: 17, rounds: [121,113,97] },
+    { rank: 19, name: "M. Muenchow", avgAll: 116, avgLast3: 116, avgLast5: 116, high: 120, low: 112, volatility: 8, vibes: 7.9, prevRank: 18, rounds: [120,112] },
+    { rank: 20, name: "J. Goetz", avgAll: null, avgLast3: null, avgLast5: null, high: null, low: null, volatility: null, vibes: 5.5, prevRank: 19, rounds: [] },
   ],
 
-  // Prior-year average scores by nickname, for trend lines (self-consistent
-  // naming within the workbook across the 2024/2025/2026 tabs).
+  // Prior-year average scores by standardized name, for trend lines
+  // (self-consistent naming within the workbook across the 2024/2025/2026
+  // tabs — see players2026 note above on the name standardization).
   historicalAvg: {
-    "Brent":   { y2024: 77,  y2025: 77,   y2026: 75.9 },
-    "Glen":    { y2024: 80,  y2025: 80.6, y2026: 81.7 },
-    "Goetz":   { y2024: 87,  y2025: 85,   y2026: 83.1 },
-    "Cedar":   { y2024: 86,  y2025: 87.3, y2026: 87 },
-    "Hagan":   { y2024: 90,  y2025: 89.2, y2026: 93 },
-    "Stover":  { y2024: 92,  y2025: 90.2, y2026: 88.5 },
-    "Chad":    { y2024: null,y2025: 93.5, y2026: 92.4 },
-    "Urban":   { y2024: null,y2025: 92.3, y2026: 94.8 },
-    "Joe P":   { y2024: 96,  y2025: 95,   y2026: 95.8 },
-    "Jolm":    { y2024: null,y2025: 96,   y2026: 90.7 },
-    "Green":   { y2024: 98,  y2025: 101,  y2026: 93.8 },
-    "Jackie":  { y2024: 110, y2025: 103,  y2026: 102.7 },
-    "Jase":    { y2024: 102, y2025: 105,  y2026: null },
-    "Joedogg": { y2024: 100, y2025: null, y2026: 103 },
-    "Munch":   { y2024: null,y2025: null, y2026: 116 },
+    "B. Prodahl":   { y2024: 77,  y2025: 77,   y2026: 75.9 },
+    "G. Prodahl":   { y2024: 80,  y2025: 80.6, y2026: 81.7 },
+    "N. Goetz":     { y2024: 87,  y2025: 85,   y2026: 83.1 },
+    "C. Palaia":    { y2024: 86,  y2025: 87.3, y2026: 87 },
+    "M. Hagan":     { y2024: 90,  y2025: 89.2, y2026: 93 },
+    "M. Stover":    { y2024: 92,  y2025: 90.2, y2026: 88.5 },
+    "C. Musser":    { y2024: null,y2025: 93.5, y2026: 92.4 },
+    "A. Urban":     { y2024: null,y2025: 92.3, y2026: 94.8 },
+    "J. Pfaffinger":{ y2024: 96,  y2025: 95,   y2026: 95.8 },
+    "J. Olmanson":  { y2024: null,y2025: 96,   y2026: 90.7 },
+    "E. Greenblat": { y2024: 98,  y2025: 101,  y2026: 93.8 },
+    "J. Conlin":    { y2024: 110, y2025: 103,  y2026: 102.7 },
+    "J. Goetz":     { y2024: 102, y2025: 105,  y2026: null },
+    "J. Larson":    { y2024: 100, y2025: null, y2026: 103 },
+    "M. Muenchow":  { y2024: null,y2025: null, y2026: 116 },
   },
 
   // Career legacy records, from the PDF "Historical Summary" page.
-  // Keyed by formal name as printed (Last, First initial).
+  // Reformatted to the same "F. Last" standard as players2026 (originally
+  // printed "Last, First initial" — this is a pure format flip of data we
+  // already had, not a new name guess).
   legacyRecords: [
-    { name: "Ainsworth, L.",  years: 1, championships: 0, wins: 0, draws: 0, losses: 2, winPct: "0%" },
-    { name: "Conlin, J.",     years: 2, championships: 2, wins: 3, draws: 0, losses: 1, winPct: "75%" },
-    { name: "Goetz, D.",      years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
-    { name: "Goetz, J.",      years: 2, championships: 1, wins: 3, draws: 0, losses: 1, winPct: "75%" },
-    { name: "Goetz, L.",      years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
-    { name: "Goetz, N.",      years: 2, championships: 1, wins: 1, draws: 3, losses: 0, winPct: "63%" },
-    { name: "Greenblat, E.",  years: 2, championships: 1, wins: 2, draws: 0, losses: 2, winPct: "50%" },
-    { name: "Hagan, M.",      years: 2, championships: 0, wins: 1, draws: 1, losses: 2, winPct: "38%" },
-    { name: "Larson, J.",     years: 2, championships: 1, wins: 3, draws: 0, losses: 1, winPct: "75%" },
-    { name: "Muenchow, M.",   years: 1, championships: 1, wins: 1, draws: 0, losses: 1, winPct: "50%" },
-    { name: "Musser, C.",     years: 1, championships: 1, wins: 0, draws: 1, losses: 1, winPct: "25%" },
-    { name: "Olmanson, J.",   years: 1, championships: 0, wins: 0, draws: 0, losses: 2, winPct: "0%" },
-    { name: "Palaia, C.",     years: 2, championships: 1, wins: 1, draws: 1, losses: 2, winPct: "38%" },
-    { name: "Pfaffinger, J.", years: 2, championships: 1, wins: 1, draws: 0, losses: 3, winPct: "25%" },
-    { name: "Prodahl, B.",    years: 2, championships: 0, wins: 1, draws: 2, losses: 1, winPct: "50%" },
-    { name: "Prodahl, G.",    years: 2, championships: 1, wins: 2, draws: 1, losses: 1, winPct: "63%" },
-    { name: "Rothstein, J.",  years: 2, championships: 2, wins: 2, draws: 1, losses: 1, winPct: "63%" },
-    { name: "Stover, M.",     years: 2, championships: 1, wins: 2, draws: 1, losses: 1, winPct: "63%" },
-    { name: "Urban, A.",      years: 1, championships: 1, wins: 1, draws: 1, losses: 0, winPct: "75%" },
-    { name: "Zogg, H.",       years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
+    { name: "L. Ainsworth",  years: 1, championships: 0, wins: 0, draws: 0, losses: 2, winPct: "0%" },
+    { name: "J. Conlin",     years: 2, championships: 2, wins: 3, draws: 0, losses: 1, winPct: "75%" },
+    { name: "D. Goetz",      years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
+    { name: "J. Goetz",      years: 2, championships: 1, wins: 3, draws: 0, losses: 1, winPct: "75%" },
+    { name: "L. Goetz",      years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
+    { name: "N. Goetz",      years: 2, championships: 1, wins: 1, draws: 3, losses: 0, winPct: "63%" },
+    { name: "E. Greenblat",  years: 2, championships: 1, wins: 2, draws: 0, losses: 2, winPct: "50%" },
+    { name: "M. Hagan",      years: 2, championships: 0, wins: 1, draws: 1, losses: 2, winPct: "38%" },
+    { name: "J. Larson",     years: 2, championships: 1, wins: 3, draws: 0, losses: 1, winPct: "75%" },
+    { name: "M. Muenchow",   years: 1, championships: 1, wins: 1, draws: 0, losses: 1, winPct: "50%" },
+    { name: "C. Musser",     years: 1, championships: 1, wins: 0, draws: 1, losses: 1, winPct: "25%" },
+    { name: "J. Olmanson",   years: 1, championships: 0, wins: 0, draws: 0, losses: 2, winPct: "0%" },
+    { name: "C. Palaia",     years: 2, championships: 1, wins: 1, draws: 1, losses: 2, winPct: "38%" },
+    { name: "J. Pfaffinger", years: 2, championships: 1, wins: 1, draws: 0, losses: 3, winPct: "25%" },
+    { name: "B. Prodahl",    years: 2, championships: 0, wins: 1, draws: 2, losses: 1, winPct: "50%" },
+    { name: "G. Prodahl",    years: 2, championships: 1, wins: 2, draws: 1, losses: 1, winPct: "63%" },
+    { name: "J. Rothstein",  years: 2, championships: 2, wins: 2, draws: 1, losses: 1, winPct: "63%" },
+    { name: "M. Stover",     years: 2, championships: 1, wins: 2, draws: 1, losses: 1, winPct: "63%" },
+    { name: "A. Urban",      years: 1, championships: 1, wins: 1, draws: 1, losses: 0, winPct: "75%" },
+    { name: "H. Zogg",       years: 0, championships: 0, wins: 0, draws: 0, losses: 0, winPct: "--" },
   ],
 
-  // Past tournament results, from the PDF.
+  // Past tournament results, from the PDF. Captain names reformatted to the
+  // same "F. Last" standard (pure format flip, same source data as before).
   pastResults: [
     {
       year: 2024, title: "1st Annual (Inaugural Year)",
-      captains: { team1: "Ainsworth, L.", team2: "Conlin, J." },
+      captains: { team1: "L. Ainsworth", team2: "J. Conlin" },
       day1: { date: "August 16, 2024", course: "Hayward Golf Course", format: "Combined Score Match Play" },
       day2: { date: "August 17, 2024", course: "Big Fish Golf Club", format: "2v2 Scramble" },
       finalScore: { team1: 1.5, team2: 4.5 },
@@ -102,7 +131,7 @@ const HI_DATA = {
     },
     {
       year: 2025, title: "2nd Annual",
-      captains: { team1: "Goetz, N.", team2: "Palaia, C." },
+      captains: { team1: "N. Goetz", team2: "C. Palaia" },
       day1: { date: "August 22, 2025", course: "Big Fish Golf Club", format: "Combined Score Match Play" },
       day2: { date: "August 23, 2025", course: "Hayward Golf Course", format: "2v2 Scramble" },
       finalScore: { team1: 3.0, team2: 5.0 },

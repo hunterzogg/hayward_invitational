@@ -78,13 +78,13 @@
     let flips = 0;
     const resultEl = document.getElementById("coin-result");
     const flipInterval = setInterval(() => {
-      resultEl.textContent = Math.random() < 0.5 ? "Team Hagan..." : "Team Green...";
+      resultEl.textContent = Math.random() < 0.5 ? `Team ${captains.team1.teamLabel}...` : `Team ${captains.team2.teamLabel}...`;
       flips++;
       if (flips > 8) {
         clearInterval(flipInterval);
         const first = Math.random() < 0.5 ? "team1" : "team2";
-        const firstName = first === "team1" ? captains.team1.name : captains.team2.name;
-        resultEl.textContent = `Team ${firstName} picks first!`;
+        const firstLabel = first === "team1" ? captains.team1.teamLabel : captains.team2.teamLabel;
+        resultEl.textContent = `Team ${firstLabel} picks first!`;
         state.order = buildSnakeOrder(first, state.available.length);
         state.started = true;
         document.getElementById("draft-section").style.display = "";
@@ -98,7 +98,7 @@
   function teamPanelHTML(teamKey) {
     const c = teamKey === "team1" ? captains.team1 : captains.team2;
     const roster = state[teamKey];
-    const label = teamKey === "team1" ? "Team " + captains.team1.name : "Team " + captains.team2.name;
+    const label = teamKey === "team1" ? "Team " + captains.team1.teamLabel : "Team " + captains.team2.teamLabel;
     const rows = roster.map(p => `
       <li class="${p.isCaptain ? "captain-row" : ""}">
         <span>${p.name}${p.isCaptain ? " (C)" : ""}</span>
@@ -128,8 +128,8 @@
       return;
     }
     const team = currentTeam();
-    const name = team === "team1" ? captains.team1.name : captains.team2.name;
-    el.textContent = `On the clock: Team ${name} (Pick ${state.pickIndex + 1} of ${state.order.length})`;
+    const label = team === "team1" ? captains.team1.teamLabel : captains.team2.teamLabel;
+    el.textContent = `On the clock: Team ${label} (Pick ${state.pickIndex + 1} of ${state.order.length})`;
     el.className = "turn-banner " + (team === "team1" ? "t1" : "t2");
   }
 
@@ -311,7 +311,7 @@
 
   function pairingPanelHTML(teamKey, day) {
     const c = teamKey === "team1" ? captains.team1 : captains.team2;
-    const teamLabel = "Team " + c.name;
+    const teamLabel = "Team " + c.teamLabel;
     const teamClass = teamKey === "team1" ? "team1" : "team2";
 
     if (day === 2 && !day1Complete(teamKey)) {
@@ -505,7 +505,7 @@
 
   function runSimulation() {
     if (!allPairingsComplete()) return;
-    const name1 = captains.team1.name, name2 = captains.team2.name;
+    const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
     const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1);
     const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2);
