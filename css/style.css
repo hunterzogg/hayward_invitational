@@ -267,30 +267,6 @@ main { padding: 48px 0 80px; }
   background: linear-gradient(90deg, var(--gold), transparent);
 }
 
-.freshness-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: rgba(15, 81, 50, 0.08);
-  color: var(--masters-green-dark);
-  white-space: nowrap;
-}
-.freshness-badge .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-.freshness-badge.fresh {
-  background: rgba(212, 175, 55, 0.22);
-  color: var(--gold-dark);
-}
-
 .card {
   background: var(--white);
   border: 1px solid rgba(15, 81, 50, 0.12);
@@ -383,22 +359,26 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .table-wrap table tbody tr:nth-child(even) td:first-child { background: #f2f0e1; }
 .table-wrap table tbody tr:hover td:first-child { background: #f6ecc9; }
 
-/* The rankings table leads with a narrow Rank column, so the Player name
-   (2nd column) also needs to stay pinned — otherwise scrolling right hides
-   the one thing you're trying to track. */
+/* The rankings table's first column (Rank) is just a small badge, so give
+   it a narrow fixed width instead of the generic pin eating extra space —
+   on a ~375px phone, only pinning one narrow column leaves the rest of the
+   row (Recent Change, Player, and all the stat columns) enough room to
+   actually be readable while scrolling. */
 #rankings-table th:first-child,
-#rankings-table td:first-child { width: 56px; }
-#rankings-table th:nth-child(2),
-#rankings-table td:nth-child(2) {
-  position: sticky;
-  left: 56px;
-  z-index: 2;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.09);
+#rankings-table td:first-child { width: 44px; }
+
+/* Smaller, tighter table text on phones so more columns are visible in one
+   screenful without scrolling — a wide table you have to scroll one column
+   at a time to read is hard to absorb at a glance. */
+@media (max-width: 600px) {
+  .table-wrap table { font-size: 0.76rem; min-width: 0; }
+  .table-wrap th, .table-wrap td { padding: 6px 7px; }
+  .table-wrap th { font-size: 0.6rem; letter-spacing: 0.03em; }
+  .rank-badge { width: 20px; height: 20px; font-size: 0.68rem; }
+  #rankings-table th:first-child,
+  #rankings-table td:first-child { width: 32px; }
+  .vibes-star, .pill-change.new { font-size: 0.62rem; }
 }
-#rankings-table th:nth-child(2) { background: var(--masters-green-dark); z-index: 3; }
-#rankings-table td:nth-child(2) { background: #fbf8ee; }
-#rankings-table tbody tr:nth-child(even) td:nth-child(2) { background: #f2f0e1; }
-#rankings-table tbody tr:hover td:nth-child(2) { background: #f6ecc9; }
 
 /* ---------- Sortable table headers ---------- */
 th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
@@ -410,7 +390,7 @@ th.sortable.sorted .sort-arrow { opacity: 1; color: var(--gold); }
 .vibes-star { color: var(--gold-dark); margin-left: 3px; }
 .change-indicator { font-weight: 700; font-variant-numeric: tabular-nums; }
 .change-indicator.up { color: var(--masters-green); }
-.change-indicator.down { color: var(--gold-dark); }
+.change-indicator.down { color: #b3261e; }
 .pill-change.new {
   display: inline-block;
   padding: 2px 9px;
