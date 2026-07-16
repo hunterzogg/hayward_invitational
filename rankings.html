@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Power Rankings — Hayward Invitational</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="img/logo.jpg" alt="Hayward Invitational League Logo">
+      <span class="brand-text">
+        <span class="kicker">Est. 2024</span>
+        <span class="title">Hayward Invitational</span>
+      </span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="captains.html">Captains</a>
+      <a href="courses.html">Courses</a>
+      <a href="rankings.html" class="active">Power Rankings</a>
+      <a href="draft.html">Mock Draft</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Power Rankings</h1>
+    <p>Ranked by 2026 season average gross score, low to high.</p>
+  </div>
+</section>
+
+<main>
+  <div class="container">
+
+    <div class="section">
+      <div class="section-title"><h2>2026 Season Rankings</h2><span class="freshness-badge" id="freshness-badge"></span></div>
+      <div class="table-wrap">
+        <table id="rankings-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Player</th>
+              <th class="num">Avg (All)</th>
+              <th class="num">Avg (L3)</th>
+              <th class="num">Avg (L5)</th>
+              <th class="num">Low</th>
+              <th class="num">High</th>
+              <th class="num">Volatility</th>
+              <th>Form</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:0.82rem; margin-top:10px;">Volatility = high score minus low score this season. "Form" shows every logged round this year, oldest to newest.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><h2>Multi-Year Trend</h2></div>
+      <div class="table-wrap">
+        <table id="trend-table">
+          <thead>
+            <tr><th>Player</th><th class="num">2024 Avg</th><th class="num">2025 Avg</th><th class="num">2026 Avg</th><th>Trend</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><h2>Career Legacy Records</h2></div>
+      <p class="muted">All-time records since the Invitational began in 2024, from the tournament's historical archive. Note: names here are recorded formally (Last, First initial) and are not cross-matched to this season's nicknames above.</p>
+      <div class="table-wrap">
+        <table id="legacy-table">
+          <thead>
+            <tr><th>Player</th><th class="num">Years</th><th class="num">Titles</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">Win %</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><h2>Past Finals</h2></div>
+      <div class="grid-2" id="past-results"></div>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>Hayward Invitational &middot; <span class="gold-text">Big Fish Golf Club</span> &amp; <span class="gold-text">Hayward Golf Course</span> &middot; Hayward, WI</p>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script>
+(function () {
+  const el = document.getElementById("freshness-badge");
+  if (!el || !HI_DATA.scoresUpdated) return;
+  const updated = new Date(HI_DATA.scoresUpdated + "T00:00:00");
+  const days = Math.floor((new Date() - updated) / 86400000);
+  const formatted = updated.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const fresh = days >= 0 && days <= 14;
+  el.classList.toggle("fresh", fresh);
+  el.innerHTML = `<span class="dot"></span>${fresh ? "Fresh data — u" : "U"}pdated ${formatted}`;
+})();
+
+const rankBody = document.querySelector("#rankings-table tbody");
+HI_DATA.players2026.forEach(p => {
+  const badgeClass = p.rank <= 3 ? "rank-badge gold" : "rank-badge";
+  let form;
+  if (p.rounds.length) {
+    const rMin = Math.min(...p.rounds);
+    const rMax = Math.max(...p.rounds);
+    const span = rMax - rMin || 1;
+    const barMin = 6, barMax = 26;
+    form = `<div style="display:flex; gap:3px; align-items:flex-end; height:${barMax}px;">` +
+      p.rounds.map(r => {
+        const h = barMin + ((r - rMin) / span) * (barMax - barMin);
+        const color = r <= p.avgAll ? "var(--masters-green)" : "var(--gold)";
+        return `<div title="${r}" style="width:5px; height:${h}px; background:${color}; border-radius:1px;"></div>`;
+      }).join("") + `</div>`;
+  } else {
+    form = `<span class="muted">no rounds yet</span>`;
+  }
+
+  rankBody.innerHTML += `<tr>
+    <td><span class="${badgeClass}">${p.rank}</span></td>
+    <td><strong>${p.name}</strong></td>
+    <td class="num">${p.avgAll ?? "—"}</td>
+    <td class="num">${p.avgLast3 ?? "—"}</td>
+    <td class="num">${p.avgLast5 ?? "—"}</td>
+    <td class="num">${p.low ?? "—"}</td>
+    <td class="num">${p.high ?? "—"}</td>
+    <td class="num">${p.volatility ?? "—"}</td>
+    <td>${form}</td>
+  </tr>`;
+});
+
+const trendBody = document.querySelector("#trend-table tbody");
+Object.keys(HI_DATA.historicalAvg).forEach(name => {
+  const t = HI_DATA.historicalAvg[name];
+  const vals = [t.y2024, t.y2025, t.y2026].filter(v => v != null);
+  let arrow = "";
+  if (vals.length >= 2) {
+    const delta = vals[vals.length - 1] - vals[0];
+    arrow = delta < 0
+      ? `<span style="color:var(--masters-green);">▼ improving (${Math.abs(delta).toFixed(1)})</span>`
+      : delta > 0
+        ? `<span style="color:var(--gold-dark);">▲ trending up (${delta.toFixed(1)})</span>`
+        : `<span class="muted">steady</span>`;
+  } else {
+    arrow = `<span class="muted">—</span>`;
+  }
+  trendBody.innerHTML += `<tr>
+    <td><strong>${name}</strong></td>
+    <td class="num">${t.y2024 ?? "—"}</td>
+    <td class="num">${t.y2025 ?? "—"}</td>
+    <td class="num">${t.y2026 ?? "—"}</td>
+    <td>${arrow}</td>
+  </tr>`;
+});
+
+const legacyBody = document.querySelector("#legacy-table tbody");
+HI_DATA.legacyRecords
+  .slice()
+  .sort((a,b) => b.wins - a.wins || b.championships - a.championships)
+  .forEach(r => {
+    legacyBody.innerHTML += `<tr>
+      <td><strong>${r.name}</strong></td>
+      <td class="num">${r.years}</td>
+      <td class="num">${r.championships}</td>
+      <td class="num">${r.wins}</td>
+      <td class="num">${r.draws}</td>
+      <td class="num">${r.losses}</td>
+      <td class="num">${r.winPct}</td>
+    </tr>`;
+  });
+
+const pastRoot = document.getElementById("past-results");
+HI_DATA.pastResults.forEach(res => {
+  const teamAWin = res.winner === "team1";
+  pastRoot.innerHTML += `
+  <div class="card">
+    <h3>${res.title} (${res.year})</h3>
+    <p class="muted" style="margin-top:-6px;">${res.day1.course} &rarr; ${res.day2.course}</p>
+    <table>
+      <tr><th></th><th>Captain</th><th class="num">Score</th></tr>
+      <tr style="${teamAWin ? 'font-weight:700;' : ''}">
+        <td><span class="pill team1">Team 1</span></td>
+        <td>${res.captains.team1}</td>
+        <td class="num">${res.finalScore.team1}</td>
+      </tr>
+      <tr style="${!teamAWin ? 'font-weight:700;' : ''}">
+        <td><span class="pill team2">Team 2</span></td>
+        <td>${res.captains.team2}</td>
+        <td class="num">${res.finalScore.team2}</td>
+      </tr>
+    </table>
+  </div>`;
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captains — Hayward Invitational</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="img/logo.jpg" alt="Hayward Invitational League Logo">
+      <span class="brand-text">
+        <span class="kicker">Est. 2024</span>
+        <span class="title">Hayward Invitational</span>
+      </span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="captains.html" class="active">Captains</a>
+      <a href="courses.html">Courses</a>
+      <a href="rankings.html">Power Rankings</a>
+      <a href="draft.html">Mock Draft</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>2026 Captains</h1>
+    <p>Two leaders. Two rosters. One Cup.</p>
+  </div>
+</section>
+
+<main>
+  <div class="container">
+
+    <div class="section">
+      <div class="grid-2" id="captain-cards">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><h2>Rivalry Watch</h2></div>
+      <div class="card">
+        <p>This isn't these two's first time on opposite sides of a scorecard. In <strong>2025</strong>, Hagan played for Team 1 (captained by N. Goetz) while Greenblat played for Team 2 (captained by C. Palaia) — and Team 2 walked away with the Cup, 5.0&ndash;3.0. Now the two get to settle it directly, drafting their own rosters from the full field.</p>
+      </div>
+    </div>
+
+    <div class="section text-center">
+      <a class="btn" href="draft.html">Start the Mock Draft</a>
+    </div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>Hayward Invitational &middot; <span class="gold-text">Big Fish Golf Club</span> &amp; <span class="gold-text">Hayward Golf Course</span> &middot; Hayward, WI</p>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script>
+function findPlayer(name) {
+  return HI_DATA.players2026.find(p => p.name === name);
+}
+function findLegacy(formalName) {
+  return HI_DATA.legacyRecords.find(r => r.name === formalName);
+}
+
+function captainCard(captainKey, formalName, teamClass, teamLabel) {
+  const c = HI_DATA.captains[captainKey];
+  const p = findPlayer(c.name);
+  const legacy = findLegacy(formalName);
+  const trend = HI_DATA.historicalAvg[c.name] || {};
+
+  return `
+  <div class="card">
+    <div style="display:flex; align-items:center; gap:16px;">
+      ${c.logo ? `<img src="${c.logo}" alt="${c.full} team photo" style="width:72px; height:72px; border-radius:50%; object-fit:cover; object-position:center top; border:3px solid var(--gold); flex-shrink:0;">` : ""}
+      <div>
+        <div class="pill ${teamClass}">${teamLabel}</div>
+        <h2 style="margin-top:8px; margin-bottom:0;">${c.full}</h2>
+      </div>
+    </div>
+
+    <div class="grid-2" style="gap:14px; margin:20px 0;">
+      <div>
+        <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">2026 Power Rank</div>
+        <div style="font-size:1.6rem; color:var(--masters-green-dark); font-weight:700;">#${p ? p.rank : "—"}</div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">Season Average</div>
+        <div style="font-size:1.6rem; color:var(--masters-green-dark); font-weight:700;">${p && p.avgAll ? p.avgAll : "—"}</div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">Best / Worst</div>
+        <div style="font-size:1.05rem;">${p ? p.low + " / " + p.high : "—"}</div>
+      </div>
+      <div>
+        <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em;">Volatility</div>
+        <div style="font-size:1.05rem;">${p && p.volatility != null ? p.volatility + " strokes" : "—"}</div>
+      </div>
+    </div>
+
+    <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Season averages by year</div>
+    <table style="margin-bottom:18px;">
+      <tr><th>2024</th><th>2025</th><th>2026</th></tr>
+      <tr>
+        <td>${trend.y2024 ?? "—"}</td>
+        <td>${trend.y2025 ?? "—"}</td>
+        <td>${trend.y2026 ?? "—"}</td>
+      </tr>
+    </table>
+
+    ${legacy ? `
+    <div class="muted" style="font-size:0.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;">Career Record</div>
+    <table>
+      <tr><th>Years</th><th>Titles</th><th>W-D-L</th><th>Win %</th></tr>
+      <tr>
+        <td>${legacy.years}</td>
+        <td>${legacy.championships}</td>
+        <td>${legacy.wins}-${legacy.draws}-${legacy.losses}</td>
+        <td>${legacy.winPct}</td>
+      </tr>
+    </table>` : ""}
+  </div>`;
+}
+
+document.getElementById("captain-cards").innerHTML =
+  captainCard("team1", "Hagan, M.", "team1", "Captain") +
+  captainCard("team2", "Greenblat, E.", "team2", "Captain");
+</script>
+
+</body>
+</html>

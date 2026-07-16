@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mock Draft — Hayward Invitational</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .draft-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr 1fr;
+    grid-template-areas: "team1 pool team2";
+    gap: 20px;
+    align-items: start;
+  }
+  .draft-layout .team-panel { grid-area: team1; }
+  .draft-layout .team-panel.team2 { grid-area: team2; }
+  .draft-layout .pool-card { grid-area: pool; min-width: 0; }
+  @media (max-width: 900px) {
+    .draft-layout {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "team1 team2"
+        "pool pool";
+    }
+  }
+  .team-panel { border-top: 6px solid var(--masters-green); }
+  .team-panel.team2 { border-top-color: var(--gold); }
+  .team-panel h3 { display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 6px; }
+  .roster-list { list-style:none; margin:12px 0 0; padding:0; }
+  .roster-list li { display:flex; justify-content:space-between; gap: 6px; padding:8px 0; border-bottom:1px dashed rgba(15,81,50,0.15); font-size:0.92rem; }
+  @media (max-width: 900px) {
+    .team-panel { padding: 18px; }
+    .team-panel h3 { font-size: 1.05rem; }
+    .roster-list li { font-size: 0.82rem; }
+    .pool-meta { display: block; }
+  }
+  @media (max-width: 480px) {
+    .team-panel { padding: 14px; }
+    .team-panel h3 { font-size: 0.95rem; }
+    .roster-list li { font-size: 0.76rem; }
+  }
+  .roster-list li.captain-row { font-weight:700; color: var(--masters-green-dark); }
+  .pool-list { list-style:none; margin:0; padding:0; max-height: 560px; overflow-y:auto; }
+  .pool-list li { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid rgba(15,81,50,0.08); }
+  .pool-list li:hover { background: rgba(212,175,55,0.08); }
+  .pool-meta { font-size:0.78rem; color: var(--ink-soft); }
+  .turn-banner { text-align:center; padding:14px; border-radius: var(--radius); font-weight:700; margin-bottom:16px; color:var(--white); }
+  .turn-banner.t1 { background: var(--masters-green); }
+  .turn-banner.t2 { background: var(--gold-dark); }
+  .draft-btn { padding:6px 14px; font-size:0.82rem; border-radius:999px; border:1px solid var(--masters-green); background:var(--white); color:var(--masters-green-dark); cursor:pointer; font-family:inherit; font-weight:700; }
+  .draft-btn:hover { background: var(--masters-green); color:var(--white); }
+  .sim-day { margin-bottom: 26px; }
+  .sim-pair { display:grid; grid-template-columns: 1fr auto 1fr; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid rgba(15,81,50,0.08); }
+  .sim-side { padding:10px 14px; border-radius:8px; }
+  .sim-side.win { background: rgba(15,81,50,0.09); font-weight:700; }
+  .sim-vs { text-align:center; color:var(--ink-soft); font-size:0.8rem; }
+  .winner-banner { text-align:center; padding:34px; border-radius: var(--radius); color:var(--white); background: linear-gradient(160deg, var(--masters-green-dark), var(--masters-green-mid)); box-shadow: var(--shadow); }
+  .winner-banner h2 { color: var(--gold); font-size: 2.1rem; }
+
+  /* ---- Pairings ---- */
+  .pairing-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  .pairing-panel { border-top: 6px solid var(--masters-green); min-width:0; }
+  .pairing-panel.team2 { border-top-color: var(--gold); }
+  .pairing-panel h4 { margin:0 0 4px; }
+  .pairing-panel .locked-msg { color: var(--ink-soft); font-size:0.85rem; padding: 10px 0; }
+  .pair-tier-legend { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; font-size:0.7rem; }
+  .pair-tier-badge { text-transform:uppercase; letter-spacing:.04em; padding:2px 8px; border-radius:999px; font-weight:700; }
+  .pair-tier-badge.top { background:rgba(15,81,50,0.14); color:var(--masters-green-dark); }
+  .pair-tier-badge.wild { background:rgba(212,175,55,0.28); color:var(--gold-dark); }
+  .pair-tier-badge.bottom { background:rgba(72,88,79,0.12); color:var(--ink-soft); }
+  .pair-player-btn {
+    display:flex; justify-content:space-between; align-items:center; width:100%;
+    text-align:left; padding:8px 10px; margin-bottom:6px; border-radius:6px;
+    border:1px solid rgba(15,81,50,0.15); background:var(--white); cursor:pointer;
+    font-family:inherit; font-size:0.85rem; gap:8px;
+  }
+  .pair-player-btn:hover:not(:disabled) { background: rgba(212,175,55,0.1); }
+  .pair-player-btn.selected { background: var(--gold); border-color: var(--gold-dark); font-weight:700; }
+  .pair-player-btn:disabled { opacity:0.32; cursor:not-allowed; }
+  .confirmed-pairs { list-style:none; margin: 10px 0 0; padding:0; }
+  .confirmed-pair-row { display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:rgba(15,81,50,0.06); border-radius:6px; margin-bottom:6px; font-size:0.85rem; }
+  .unpair-btn { background:none; border:none; color:var(--ink-soft); cursor:pointer; font-size:1.1rem; line-height:1; padding:0 4px; font-weight:700; }
+  .unpair-btn:hover { color: var(--gold-dark); }
+  .sitout-note { font-size:0.8rem; color: var(--ink-soft); margin-top:8px; font-style:italic; }
+  .pairing-autobtn { margin-bottom:14px; }
+  @media (max-width: 480px) {
+    .pairing-grid { gap:10px; }
+    .pairing-panel { padding:14px; }
+    .pair-player-btn { font-size:0.76rem; padding:7px 8px; }
+  }
+
+  /* ---- Simulate CTA ---- */
+  #simulate-card {
+    background: linear-gradient(160deg, var(--masters-green-dark), var(--masters-green-mid));
+    color: var(--fairway);
+    box-shadow: 0 0 0 3px var(--gold), var(--shadow);
+  }
+  #simulate-card h2 { color: var(--white); }
+  #simulate-card #simulate-help { color: var(--fairway); }
+  #simulate-btn:disabled { background: rgba(212,175,55,0.35); color: rgba(11,61,36,0.5); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="img/logo.jpg" alt="Hayward Invitational League Logo">
+      <span class="brand-text">
+        <span class="kicker">Est. 2024</span>
+        <span class="title">Hayward Invitational</span>
+      </span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="captains.html">Captains</a>
+      <a href="courses.html">Courses</a>
+      <a href="rankings.html">Power Rankings</a>
+      <a href="draft.html" class="active">Mock Draft</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Mock Draft &amp; Simulation</h1>
+    <p>Hagan vs. Greenblat: build your rosters, then simulate the weekend.</p>
+  </div>
+</section>
+
+<main>
+  <div class="container">
+
+    <div class="section" id="coin-flip-section">
+      <div class="card text-center">
+        <h3>Who picks first?</h3>
+        <p class="muted">Flip the coin to set the draft order (snake draft — order reverses each round).</p>
+        <button class="btn" id="coin-flip-btn">Flip the Coin</button>
+        <p id="coin-result" class="muted" style="margin-top:14px;"></p>
+      </div>
+    </div>
+
+    <div class="section" id="draft-section" style="display:none;">
+      <div class="turn-banner" id="turn-banner"></div>
+      <div class="draft-layout">
+        <div class="card team-panel" id="team1-panel"></div>
+
+        <div class="card pool-card">
+          <div class="text-center" style="margin-bottom:14px;">
+            <button class="btn btn-secondary" id="autodraft-btn">Sim to End</button>
+          </div>
+          <h3>Available Players</h3>
+          <p class="muted" style="font-size:0.82rem;">Sorted by 2026 power rank.</p>
+          <ul class="pool-list" id="pool-list"></ul>
+        </div>
+
+        <div class="card team-panel team2" id="team2-panel"></div>
+      </div>
+    </div>
+
+    <div class="section" id="pairings-section" style="display:none;">
+      <div class="section-title"><h2>Set Your Pairings</h2></div>
+      <div class="card" style="margin-bottom:20px;">
+        <p class="muted" style="margin:0 0 14px;">Each team is split by 2026 average score into a <strong>Top 4</strong>, a <strong>Bottom 4</strong>, and two <strong>Wild Cards</strong> (ranks 5–6 on the team). Top 4 can only partner with Top 4 or a Wild Card; Bottom 4 can only partner with Bottom 4 or a Wild Card; Wild Cards can partner with anyone. Nobody can repeat their Day 1 partner on Day 2.</p>
+        <div class="text-center">
+          <button type="button" class="btn btn-secondary" id="autopair-all-btn">Auto-Pair Both Days</button>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px;">Day 1 — Hayward Golf Course</h3>
+      <div class="pairing-grid">
+        <div class="card pairing-panel" id="pair-team1-day1"></div>
+        <div class="card pairing-panel team2" id="pair-team2-day1"></div>
+      </div>
+
+      <h3 style="margin:28px 0 14px;">Day 2 — Big Fish Golf Club</h3>
+      <div class="pairing-grid">
+        <div class="card pairing-panel" id="pair-team1-day2"></div>
+        <div class="card pairing-panel team2" id="pair-team2-day2"></div>
+      </div>
+    </div>
+
+    <div class="section text-center" id="simulate-cta" style="display:none;">
+      <div class="card" id="simulate-card">
+        <h2 id="simulate-heading">Ready to Simulate!</h2>
+        <p class="muted" id="simulate-help">Complete all four pairing panels above to unlock the simulation.</p>
+        <button class="btn" id="simulate-btn" style="font-size:1.15rem; padding:18px 48px;" disabled>Simulate the Weekend</button>
+      </div>
+    </div>
+
+    <div class="section" id="sim-results" style="display:none;"></div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>Hayward Invitational &middot; <span class="gold-text">Big Fish Golf Club</span> &amp; <span class="gold-text">Hayward Golf Course</span> &middot; Hayward, WI</p>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/draft.js"></script>
+
+</body>
+</html>
