@@ -39,6 +39,7 @@
 
     <div class="section">
       <div class="section-title"><h2>2026 Season Rankings</h2></div>
+      <button type="button" id="col-toggle-btn" class="col-toggle-btn">Show all columns</button>
       <div class="table-wrap">
         <table id="rankings-table">
           <thead>
@@ -48,12 +49,12 @@
               <th>Player</th>
               <th class="num sortable" data-sort="avgAll">Avg (All) <span class="sort-arrow"></span></th>
               <th class="num sortable" data-sort="vibes">Vibes <span class="sort-arrow"></span></th>
-              <th class="num">Avg (L3)</th>
-              <th class="num">Avg (L5)</th>
-              <th class="num">Low</th>
-              <th class="num">High</th>
-              <th class="num">Volatility</th>
-              <th>Form</th>
+              <th class="num col-extra">Avg (L3)</th>
+              <th class="num col-extra">Avg (L5)</th>
+              <th class="num col-extra">Low</th>
+              <th class="num col-extra">High</th>
+              <th class="num col-extra">Volatility</th>
+              <th class="col-extra">Form</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -104,12 +105,35 @@
 <script src="js/data.js"></script>
 <script>
 // "Recent Change" is rank movement among real (non-placeholder) players only,
-// so the fictitious TBD slot never counts as a rival to move up/down against.
-const realPlayersByAvg = HI_DATA.players2026
-  .filter(p => !p.isPlaceholder)
-  .slice()
-  .sort((a, b) => (a.avgAll ?? Infinity) - (b.avgAll ?? Infinity));
-const realRankOf = new Map(realPlayersByAvg.map((p, i) => [p.name, i + 1]));
+// so the fictitious TBD slot never counts as a rival to move up/down against
+// for Recent Change. Rank + Recent Change track whichever column is currently
+// sorted: Avg (All) (lower is better) or Vibes (higher is better), each with
+// its own prevRank field (prevRank / prevVibesRank) to diff against.
+//
+// TBD has no vibes score (it's a placeholder roster slot, not a real
+// person), so it's excluded from the Vibes ranking entirely — no rank shown.
+// But TBD's mocked-up Avg (All) score IS a meaningful stand-in for "a
+// below-average 20th player" and should count as a real rank rival when
+// sorted by Avg (All), same as any other player.
+const SORT_METRICS = {
+  avgAll: { prevKey: "prevRank", includePlaceholder: true, better: (a, b) => (a ?? Infinity) - (b ?? Infinity) },
+  vibes: { prevKey: "prevVibesRank", includePlaceholder: false, better: (a, b) => (b ?? -Infinity) - (a ?? -Infinity) },
+};
+
+function computeRankOf(metricKey) {
+  const metric = SORT_METRICS[metricKey];
+  const realPlayers = HI_DATA.players2026
+    .filter(p => metric.includePlaceholder || !p.isPlaceholder)
+    .slice()
+    .sort((a, b) => metric.better(a[metricKey], b[metricKey]));
+  return new Map(realPlayers.map((p, i) => [p.name, i + 1]));
+}
+
+function rankTierClass(rankNum) {
+  if (rankNum <= 8) return "tier-top";
+  if (rankNum <= 12) return "tier-wild";
+  return "tier-bottom";
+}
 
 function formCell(p) {
   if (!p.rounds.length) return `<span class="muted">no rounds yet</span>`;
@@ -134,10 +158,10 @@ function vibesCell(p) {
   return `${p.vibes.toFixed(1)}${star}${worst}`;
 }
 
-function changeCell(p) {
+function changeCell(p, rankMap, prevKey) {
   if (p.isPlaceholder) return `<span class="muted">—</span>`;
-  if (p.prevRank == null) return `<span class="pill-change new">New</span>`;
-  const delta = p.prevRank - realRankOf.get(p.name);
+  if (p[prevKey] == null) return `<span class="pill-change new">New</span>`;
+  const delta = p[prevKey] - rankMap.get(p.name);
   if (delta === 0) return `<span class="muted">&ndash;</span>`;
   const cls = delta > 0 ? "up" : "down";
   const arrow = delta > 0 ? "&#9650;" : "&#9660;";
@@ -148,6 +172,13 @@ const rankBody = document.querySelector("#rankings-table tbody");
 const sortState = { key: "avgAll", dir: "asc" };
 
 function renderRankings() {
+  // The Rank badge and Recent Change column always track whichever metric
+  // is currently sorted (Avg All or Vibes) — falling back to Avg All for
+  // any future non-metric sortable column.
+  const metricKey = SORT_METRICS[sortState.key] ? sortState.key : "avgAll";
+  const rankMap = computeRankOf(metricKey);
+  const prevKey = SORT_METRICS[metricKey].prevKey;
+
   const rows = HI_DATA.players2026.slice();
   rows.sort((a, b) => {
     const va = a[sortState.key] ?? (sortState.dir === "asc" ? Infinity : -Infinity);
@@ -156,19 +187,22 @@ function renderRankings() {
   });
 
   rankBody.innerHTML = rows.map(p => {
-    const badgeClass = p.rank <= 3 ? "rank-badge gold" : "rank-badge";
+    const rankNum = rankMap.get(p.name) ?? null;
+    const rankCell = rankNum == null
+      ? `<span class="rank-badge unranked">&mdash;</span>`
+      : `<span class="rank-badge ${rankTierClass(rankNum)}">${rankNum}</span>`;
     return `<tr>
-      <td><span class="${badgeClass}">${p.rank}</span></td>
-      <td class="num">${changeCell(p)}</td>
+      <td>${rankCell}</td>
+      <td class="num">${changeCell(p, rankMap, prevKey)}</td>
       <td><strong>${p.name}</strong></td>
       <td class="num">${p.avgAll ?? "—"}</td>
       <td class="num">${vibesCell(p)}</td>
-      <td class="num">${p.avgLast3 ?? "—"}</td>
-      <td class="num">${p.avgLast5 ?? "—"}</td>
-      <td class="num">${p.low ?? "—"}</td>
-      <td class="num">${p.high ?? "—"}</td>
-      <td class="num">${p.volatility ?? "—"}</td>
-      <td>${formCell(p)}</td>
+      <td class="num col-extra">${p.avgLast3 ?? "—"}</td>
+      <td class="num col-extra">${p.avgLast5 ?? "—"}</td>
+      <td class="num col-extra">${p.low ?? "—"}</td>
+      <td class="num col-extra">${p.high ?? "—"}</td>
+      <td class="num col-extra">${p.volatility ?? "—"}</td>
+      <td class="col-extra">${formCell(p)}</td>
     </tr>`;
   }).join("");
 }
@@ -202,6 +236,13 @@ document.querySelectorAll("#rankings-table th.sortable").forEach(th => {
     updateSortIndicators();
     renderRankings();
   });
+});
+
+const colToggleBtn = document.getElementById("col-toggle-btn");
+colToggleBtn.addEventListener("click", () => {
+  const table = document.getElementById("rankings-table");
+  const expanded = table.classList.toggle("expanded");
+  colToggleBtn.textContent = expanded ? "Show fewer columns" : "Show all columns";
 });
 
 updateSortIndicators();

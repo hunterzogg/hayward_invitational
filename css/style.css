@@ -13,6 +13,7 @@
   --white: #ffffff;
   --team1: #14603c;
   --team2: #b8860b;
+  --wildcard: #2a6f8e;
   --shadow: 0 8px 24px rgba(11, 61, 36, 0.15);
   --radius: 10px;
 }
@@ -388,9 +389,33 @@ th.sortable.sorted .sort-arrow { opacity: 1; color: var(--gold); }
 
 /* ---------- Vibes / Recent Change indicators ---------- */
 .vibes-star { color: var(--gold-dark); margin-left: 3px; }
-.change-indicator { font-weight: 700; font-variant-numeric: tabular-nums; }
+.change-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 .change-indicator.up { color: var(--masters-green); }
 .change-indicator.down { color: #b3261e; }
+
+/* ---------- Collapsible table columns ---------- */
+.col-toggle-btn {
+  display: inline-block;
+  margin: 6px 0 10px;
+  padding: 6px 14px;
+  border: 1px solid var(--masters-green);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--masters-green-dark);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.col-toggle-btn:hover { background: rgba(15,81,50,0.08); }
+table .col-extra { display: none; }
+table.expanded .col-extra { display: table-cell; }
 .pill-change.new {
   display: inline-block;
   padding: 2px 9px;
@@ -414,7 +439,11 @@ th.sortable.sorted .sort-arrow { opacity: 1; color: var(--gold); }
   font-weight: 700;
   font-size: 0.8rem;
 }
-.rank-badge.gold { background: var(--gold); color: var(--masters-green-dark); }
+/* Rank tiers: 1-8 top players, 9-12 wildcards, 13-20 bottom players */
+.rank-badge.tier-top { background: var(--gold); color: var(--masters-green-dark); }
+.rank-badge.tier-wild { background: var(--wildcard); color: var(--white); }
+.rank-badge.tier-bottom { background: var(--masters-green); color: var(--gold-light); }
+.rank-badge.unranked { background: transparent; color: var(--ink-soft); border: 1px dashed var(--ink-soft); }
 
 /* ---------- Footer ---------- */
 footer.site-footer {

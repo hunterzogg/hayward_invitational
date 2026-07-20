@@ -13,12 +13,12 @@ const HI_DATA = {
 
   // Bump this whenever players2026 scores/rounds are updated with fresh
   // data — it drives the "last updated" indicator on the Power Rankings page.
-  scoresUpdated: "2026-07-16",
+  scoresUpdated: "2026-07-20",
 
-  // Bump this whenever players2026 prevRank snapshots are refreshed (i.e.
-  // whenever rank/vibes data is republished) — drives future rank-movement
-  // recalculation. See the "Recent Change" note above players2026.
-  rankingsUpdated: "2026-07-16",
+  // Bump this whenever players2026 prevRank/prevVibesRank snapshots are
+  // refreshed (i.e. whenever rank/vibes data is republished) — drives future
+  // rank-movement recalculation. See the "Recent Change" note above players2026.
+  rankingsUpdated: "2026-07-20",
 
   captains: {
     // `teamLabel` is the short surname used for team branding ("Team Hagan")
@@ -41,33 +41,42 @@ const HI_DATA = {
   //
   // `prevRank`: this player's rank the last time rankings were published,
   // counted only among real (non-placeholder) players, 1-19. Used to compute
-  // the "Recent Change" column (prevRank - current real-players-only rank).
-  // When you refresh scores/ranks in the future, set each player's
-  // `prevRank` to their rank AS OF THIS CURRENT snapshot (i.e. shift the
-  // current `rank` values into `prevRank` before overwriting `rank`/scores
-  // with the new data) — that's what makes next time's "Recent Change"
-  // column correct. TBD has no prevRank (new to the list).
+  // the avgAll "Recent Change" column (prevRank - current real-players-only
+  // avgAll rank).
+  //
+  // `prevVibesRank`: same idea, but for the Vibes leaderboard (rank 1 =
+  // highest vibes), counted among the same real-players-only pool. Used to
+  // compute "Recent Change" when the table is sorted by Vibes instead of
+  // Avg (All) — see rankings.html, which recomputes both the Rank badge and
+  // the Recent Change delta against whichever column is currently sorted.
+  //
+  // When you refresh scores/ranks/vibes in the future, for BOTH of these:
+  // set each player's `prevRank`/`prevVibesRank` to their rank AS OF THIS
+  // CURRENT snapshot (i.e. shift the current values into the prev* fields
+  // before overwriting rank/vibes/scores with the new data) — that's what
+  // makes next time's "Recent Change" column correct in both sort modes.
+  // TBD has no prevRank/prevVibesRank (new to the list, no vibes score).
   players2026: [
-    { rank: 1, name: "B. Prodahl", avgAll: 75.9, avgLast3: 76, avgLast5: 79, high: 93, low: 68, volatility: 25, vibes: 8.7, prevRank: 1, rounds: [77,77,74,74,93,73,78,82,79,76,68,73,78,76,76,71,70,75,71,77] },
-    { rank: 2, name: "G. Prodahl", avgAll: 81.7, avgLast3: 83, avgLast5: 84.8, high: 90, low: 76, volatility: 14, vibes: 5.2, prevRank: 2, rounds: [82,78,89,90,85,78,78,79,76] },
-    { rank: 3, name: "N. Goetz", avgAll: 83.1, avgLast3: 82.3, avgLast5: 81.8, high: 87, low: 80, volatility: 7, vibes: 8.3, prevRank: 3, rounds: [80,80,87,80,82,86,81,86,87,82] },
-    { rank: 4, name: "L. Goetz", avgAll: 86.8, avgLast3: 85.3, avgLast5: 85.4, high: 94, low: 83, volatility: 11, vibes: 7.1, prevRank: 5, rounds: [88,85,83,83,88,85,89,85,94,83,86,92] },
-    { rank: 5, name: "C. Palaia", avgAll: 87, avgLast3: 85.7, avgLast5: 87.6, high: 93, low: 82, volatility: 11, vibes: 3.8, prevRank: 4, rounds: [86,89,82,88,93,84] },
-    { rank: 6, name: "M. Stover", avgAll: 88.5, avgLast3: 89.7, avgLast5: 87.8, high: 96, low: 83, volatility: 13, vibes: 10.0, prevRank: 6, rounds: [95,87,87,84,86,92,83,90,89,89,96,87,88,86] },
-    { rank: 7, name: "D. Goetz", avgAll: 90.5, avgLast3: 90.5, avgLast5: 90.5, high: 92, low: 89, volatility: 3, vibes: 5.0, prevRank: 7, rounds: [92,89] },
-    { rank: 8, name: "J. Olmanson", avgAll: 90.7, avgLast3: 90.3, avgLast5: 89.8, high: 105, low: 82, volatility: 23, vibes: 8.8, prevRank: 8, rounds: [93,87,91,89,89,83,83,85,88,92,96,94,85,105,95,102,91,92,96,87,82,91] },
-    { rank: 9, name: "C. Musser", avgAll: 92.4, avgLast3: 95, avgLast5: 92, high: 103, low: 83, volatility: 20, vibes: 1.8, prevRank: 9, rounds: [91,91,103,92,83,98,92,89] },
-    { rank: 10, name: "M. Hagan", avgAll: 93, avgLast3: 93.7, avgLast5: 93, high: 96, low: 91, volatility: 5, vibes: 6.8, prevRank: 10, rounds: [94,91,96,91] },
-    { rank: 11, name: "E. Greenblat", avgAll: 93.8, avgLast3: 94.3, avgLast5: 93.8, high: 99, low: 91, volatility: 8, vibes: 6.4, prevRank: 11, rounds: [91,93,99,92] },
-    { rank: 12, name: "A. Urban", avgAll: 94.8, avgLast3: 98.3, avgLast5: 94.8, high: 101, low: 89, volatility: 12, vibes: 2.8, prevRank: 12, rounds: [94,101,100,90,89] },
-    { rank: 13, name: "J. Pfaffinger", avgAll: 95.8, avgLast3: 94.3, avgLast5: 95.8, high: 100, low: 93, volatility: 7, vibes: 5.7, prevRank: 13, rounds: [96,93,94,100] },
-    { rank: 14, name: "J. Conlin", avgAll: 102.7, avgLast3: 101, avgLast5: 101.6, high: 108, low: 98, volatility: 10, vibes: 5.5, prevRank: 14, rounds: [100,105,98,99,106,108] },
-    { rank: 15, name: "J. Larson", avgAll: 103, avgLast3: 103, avgLast5: 103, high: 104, low: 102, volatility: 2, vibes: 6.0, prevRank: 15, rounds: [102,104] },
-    { rank: 16, name: "L. Ainsworth", avgAll: 105, avgLast3: 105, avgLast5: 105, high: 107, low: 101, volatility: 6, vibes: 5.8, prevRank: 16, rounds: [101,107,107] },
-    { rank: 17, name: "TBD", avgAll: 109, avgLast3: 109, avgLast5: 109, high: 118, low: 100, volatility: 18, vibes: null, prevRank: null, rounds: [], isPlaceholder: true },
-    { rank: 18, name: "H. Zogg", avgAll: 110.3, avgLast3: 110.3, avgLast5: 110.3, high: 121, low: 97, volatility: 24, vibes: 8.3, prevRank: 17, rounds: [121,113,97] },
-    { rank: 19, name: "M. Muenchow", avgAll: 116, avgLast3: 116, avgLast5: 116, high: 120, low: 112, volatility: 8, vibes: 7.9, prevRank: 18, rounds: [120,112] },
-    { rank: 20, name: "J. Goetz", avgAll: null, avgLast3: null, avgLast5: null, high: null, low: null, volatility: null, vibes: 5.5, prevRank: 19, rounds: [] },
+    { rank: 1, name: "B. Prodahl", avgAll: 75.8, avgLast3: 75.7, avgLast5: 75, high: 93, low: 68, volatility: 25, vibes: 8.9, prevRank: 1, prevVibesRank: 3, rounds: [73,77,77,74,74,93,73,78,82,79,76,68,73,78,76,76,71,70,75,71,77] },
+    { rank: 2, name: "G. Prodahl", avgAll: 81.6, avgLast3: 80.3, avgLast5: 84, high: 90, low: 76, volatility: 14, vibes: 6.2, prevRank: 2, prevVibesRank: 15, rounds: [81,82,78,89,90,85,78,78,79,76] },
+    { rank: 3, name: "N. Goetz", avgAll: 82.9, avgLast3: 80.3, avgLast5: 81.6, high: 87, low: 80, volatility: 7, vibes: 8.8, prevRank: 3, prevVibesRank: 4, rounds: [81,80,80,87,80,82,86,81,86,87,82] },
+    { rank: 4, name: "L. Goetz", avgAll: 86.8, avgLast3: 86.7, avgLast5: 85.2, high: 94, low: 83, volatility: 11, vibes: 7.8, prevRank: 4, prevVibesRank: 7, rounds: [87,88,85,83,83,88,85,89,85,94,83,86,92] },
+    { rank: 5, name: "C. Palaia", avgAll: 87.4, avgLast3: 88.3, avgLast5: 87, high: 93, low: 82, volatility: 11, vibes: 3.1, prevRank: 5, prevVibesRank: 17, rounds: [90,86,89,82,88,93,84] },
+    { rank: 6, name: "M. Stover", avgAll: 88.2, avgLast3: 88.7, avgLast5: 87.4, high: 96, low: 83, volatility: 13, vibes: 3.0, prevRank: 6, prevVibesRank: 1, rounds: [84,95,87,87,84,86,92,83,90,89,89,96,87,88,86] },
+    { rank: 7, name: "D. Goetz", avgAll: 88.7, avgLast3: 88.7, avgLast5: 88.7, high: 92, low: 85, volatility: 7, vibes: 5.8, prevRank: 8, prevVibesRank: 16, rounds: [85,92,89] },
+    { rank: 8, name: "J. Olmanson", avgAll: 89.9, avgLast3: 84.7, avgLast5: 86.4, high: 105, low: 80, volatility: 25, vibes: 9.3, prevRank: 9, prevVibesRank: 2, rounds: [81,80,93,87,91,89,89,83,83,85,88,92,96,94,85,105,95,102,91,92,96,87,82,91] },
+    { rank: 9, name: "C. Musser", avgAll: 90.4, avgLast3: 85.7, avgLast5: 90.4, high: 103, low: 75, volatility: 28, vibes: 3.2, prevRank: 7, prevVibesRank: 19, rounds: [75,91,91,103,92,83,98,92,89] },
+    { rank: 10, name: "M. Hagan", avgAll: 93, avgLast3: 93.7, avgLast5: 93, high: 96, low: 91, volatility: 5, vibes: 7.8, prevRank: 10, prevVibesRank: 8, rounds: [94,91,96,91] },
+    { rank: 11, name: "E. Greenblat", avgAll: 94.2, avgLast3: 93.3, avgLast5: 94.2, high: 99, low: 91, volatility: 8, vibes: 7.3, prevRank: 11, prevVibesRank: 9, rounds: [96,91,93,99,92] },
+    { rank: 12, name: "J. Pfaffinger", avgAll: 94.6, avgLast3: 93, avgLast5: 94.6, high: 100, low: 90, volatility: 10, vibes: 7.9, prevRank: 13, prevVibesRank: 12, rounds: [90,96,93,94,100] },
+    { rank: 13, name: "A. Urban", avgAll: 94.8, avgLast3: 98.3, avgLast5: 94.8, high: 101, low: 89, volatility: 12, vibes: 4.0, prevRank: 12, prevVibesRank: 18, rounds: [94,101,100,90,89] },
+    { rank: 14, name: "J. Conlin", avgAll: 101.7, avgLast3: 100.3, avgLast5: 99.6, high: 108, low: 96, volatility: 12, vibes: 6.5, prevRank: 14, prevVibesRank: 13, rounds: [96,100,105,98,99,106,108] },
+    { rank: 15, name: "J. Larson", avgAll: 103, avgLast3: 103, avgLast5: 103, high: 104, low: 102, volatility: 2, vibes: 7.0, prevRank: 15, prevVibesRank: 10, rounds: [102,104] },
+    { rank: 16, name: "L. Ainsworth", avgAll: 105, avgLast3: 105, avgLast5: 105, high: 107, low: 101, volatility: 6, vibes: 8.7, prevRank: 16, prevVibesRank: 11, rounds: [101,107,107] },
+    { rank: 17, name: "TBD", avgAll: 109, avgLast3: 109, avgLast5: 109, high: 118, low: 100, volatility: 18, vibes: null, prevRank: null, prevVibesRank: null, rounds: [], isPlaceholder: true },
+    { rank: 18, name: "H. Zogg", avgAll: 108, avgLast3: 113, avgLast5: 108, high: 121, low: 97, volatility: 24, vibes: 8.1, prevRank: 17, prevVibesRank: 5, rounds: [105,121,113,97,104] },
+    { rank: 19, name: "M. Muenchow", avgAll: 113.3, avgLast3: 113.3, avgLast5: 113.3, high: 120, low: 108, volatility: 12, vibes: 8.4, prevRank: 18, prevVibesRank: 6, rounds: [120,112,108] },
+    { rank: 20, name: "J. Goetz", avgAll: null, avgLast3: null, avgLast5: null, high: null, low: null, volatility: null, vibes: 6.0, prevRank: 19, prevVibesRank: 14, rounds: [] },
   ],
 
   // Prior-year average scores by standardized name, for trend lines
