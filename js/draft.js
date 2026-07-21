@@ -57,6 +57,15 @@
     return clamp(0.30 - (rank - 1) * (0.22 / 19), 0.08, 0.30);
   }
 
+  // Top-ranked players are more consistent round to round (a smaller spread
+  // around their average); lower-ranked players swing wider. This scales on
+  // top of each player's own data-driven volatility (from statsFor), it
+  // doesn't replace it.
+  function volatilityMultiplierFor(p) {
+    const rank = p.rank ?? 15;
+    return clamp(0.75 + (rank - 1) * (0.5 / 19), 0.75, 1.25);
+  }
+
   // Right-skewed per-hole noise: deviations worse than expected pass through
   // in full (this is where most of the spread lives — golfers on this trip
   // mostly shoot at or below their average), while better-than-expected
@@ -73,7 +82,8 @@
   // weighting harder holes (low hcp) to absorb slightly more of it, then
   // adds skewed per-hole noise. Returns an array of per-hole strokes.
   function simulateHoleScores(p, par, hcp) {
-    const { avg, sd } = statsFor(p);
+    const { avg, sd: baseSd } = statsFor(p);
+    const sd = baseSd * volatilityMultiplierFor(p);
     const n = par.length;
     const totalPar = par.reduce((s, x) => s + x, 0);
     const expectedOverPar = avg - totalPar;
@@ -81,11 +91,32 @@
     const mSum = multipliers.reduce((s, x) => s + x, 0);
     const perHoleSD = sd / Math.sqrt(n);
     const goodChance = goodChanceFor(p);
-    return par.map((holePar, i) => {
+    const rawHoles = par.map((holePar, i) => {
       const holeExpected = expectedOverPar * (multipliers[i] / mSum);
       const noise = skewedNoise(perHoleSD, goodChance);
       const raw = holePar + holeExpected + noise;
-      return Math.max(1, Math.round(clamp(raw, holePar - 3, holePar + 6)));
+      return clamp(raw, holePar - 3, holePar + 6);
+    });
+
+    // Anchor the round to this player's own realistic history: their actual
+    // best/worst round this season (`low`/`high`) is a far better ceiling
+    // than an abstract statistical bound — someone whose worst round all
+    // year is 93 shouldn't suddenly blow up into the high 90s just because
+    // the random draw ran hot. Rescale the round's deviations from par
+    // (keeping their hole-to-hole shape) so the total lands inside
+    // [low, high] with a small buffer for a rare new personal best/worst,
+    // falling back to a stats-only bound for players with no logged rounds.
+    const rawTotal = rawHoles.reduce((s, x) => s + x, 0);
+    const lo = p.low != null ? p.low - 2 : avg - sd * 2.5;
+    const hi = p.high != null ? p.high + 2 : avg + sd * 2.5;
+    let scale = 1;
+    if (rawTotal > hi && rawTotal !== totalPar) scale = (hi - totalPar) / (rawTotal - totalPar);
+    else if (rawTotal < lo && rawTotal !== totalPar) scale = (lo - totalPar) / (rawTotal - totalPar);
+
+    return par.map((holePar, i) => {
+      const deviation = rawHoles[i] - holePar;
+      const scored = holePar + deviation * scale;
+      return Math.max(1, Math.round(clamp(scored, holePar - 3, holePar + 6)));
     });
   }
 
@@ -495,9 +526,18 @@
     const holesB = pairB.map(p => simulateHoleScores(p, par, hcp));
     const n = par.length;
     let holesWonA = 0, holesWonB = 0, halved = 0;
+    // teamScoreA/B is the real scramble score: every player hits from the
+    // shared spot each stroke and the team keeps its best result, so there's
+    // only ever one ball per team per hole (approximated here as the better
+    // of the two players' simulated hole scores). scoreA/scoreB below are
+    // each player's own hypothetical solo round — not a real card in a
+    // scramble, kept only as flavor/context in the UI.
+    let teamScoreA = 0, teamScoreB = 0;
     for (let i = 0; i < n; i++) {
       const bestA = Math.min(holesA[0][i], holesA[1][i]);
       const bestB = Math.min(holesB[0][i], holesB[1][i]);
+      teamScoreA += bestA;
+      teamScoreB += bestB;
       if (bestA < bestB) holesWonA++;
       else if (bestB < bestA) holesWonB++;
       else halved++;
@@ -508,7 +548,7 @@
     let pointsA = pts.draw, pointsB = pts.draw;
     if (holesWonA > holesWonB) { pointsA = pts.win; pointsB = pts.loss; }
     else if (holesWonB > holesWonA) { pointsA = pts.loss; pointsB = pts.win; }
-    return { pairA, pairB, scoreA, scoreB, holesWonA, holesWonB, halved, pointsA, pointsB };
+    return { pairA, pairB, scoreA, scoreB, teamScoreA, teamScoreB, holesWonA, holesWonB, halved, pointsA, pointsB };
   }
 
   // Matches pairs of comparable strength across teams (sorted best-to-worst on
@@ -545,12 +585,14 @@
       </div>
       <div class="sim-side ${aWin ? "win" : ""}">
         <div class="pill team1">${name1}</div>
-        <div style="margin-top:6px;">${m.pairA.map((p, i) => `${p.name} (${m.scoreA[i]})`).join(" &amp; ")}</div>
+        <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreA}</div>
+        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${m.pairA.map((p, i) => `<div>${p.name} (solo pace ${m.scoreA[i]})</div>`).join("")}</div>
       </div>
       <div class="sim-vs" style="color:${pointsColor}; font-weight:700;">${pointsDisplay}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
         <div class="pill team2">${name2}</div>
-        <div style="margin-top:6px;">${m.pairB.map((p, i) => `${p.name} (${m.scoreB[i]})`).join(" &amp; ")}</div>
+        <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreB}</div>
+        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${m.pairB.map((p, i) => `<div>${p.name} (solo pace ${m.scoreB[i]})</div>`).join("")}</div>
       </div>
     </div>`;
   }
