@@ -48,10 +48,45 @@
     return mean + z * sd;
   }
 
-  function simulateRound(p) {
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  // Higher-ranked / lower-volatility players get a bigger chance of a hole
+  // landing on their "good" (better-than-expected) side of the distribution.
+  function goodChanceFor(p) {
+    const rank = p.rank ?? 15;
+    return clamp(0.30 - (rank - 1) * (0.22 / 19), 0.08, 0.30);
+  }
+
+  // Right-skewed per-hole noise: deviations worse than expected pass through
+  // in full (this is where most of the spread lives — golfers on this trip
+  // mostly shoot at or below their average), while better-than-expected
+  // deviations are dampened to a small nudge most of the time, except a
+  // goodChance fraction of holes where they pass through in full (an
+  // occasional strong showing, more likely for the top-ranked players).
+  function skewedNoise(sd, goodChance) {
+    const z = randNormal(0, sd);
+    if (z < 0) return Math.random() < goodChance ? z : z * 0.7;
+    return z;
+  }
+
+  // Splits a player's average over/under-par performance across 18 holes,
+  // weighting harder holes (low hcp) to absorb slightly more of it, then
+  // adds skewed per-hole noise. Returns an array of per-hole strokes.
+  function simulateHoleScores(p, par, hcp) {
     const { avg, sd } = statsFor(p);
-    const val = randNormal(avg, sd);
-    return Math.round(Math.max(avg - sd * 2.5, Math.min(avg + sd * 2.5, val)));
+    const n = par.length;
+    const totalPar = par.reduce((s, x) => s + x, 0);
+    const expectedOverPar = avg - totalPar;
+    const multipliers = hcp.map(h => 0.85 + (n - h) / (n - 1) * 0.30);
+    const mSum = multipliers.reduce((s, x) => s + x, 0);
+    const perHoleSD = sd / Math.sqrt(n);
+    const goodChance = goodChanceFor(p);
+    return par.map((holePar, i) => {
+      const holeExpected = expectedOverPar * (multipliers[i] / mSum);
+      const noise = skewedNoise(perHoleSD, goodChance);
+      const raw = holePar + holeExpected + noise;
+      return Math.max(1, Math.round(clamp(raw, holePar - 3, holePar + 6)));
+    });
   }
 
   // ============ DRAFT ORDER ============
@@ -443,7 +478,9 @@
   }
 
   // ============ SIMULATION ============
-  const SCRAMBLE_DISCOUNT = 9; // strokes a 2-man scramble typically saves vs. the better individual round
+  // Scramble match play: each teammate plays every hole, the team's score on
+  // that hole is the better (lower) of the two, and whichever team wins more
+  // of the 18 individual holes wins the match (ties on a hole are halved).
   const DAY_POINTS = {
     1: { win: 2, draw: 1, loss: 0 },
     2: { win: 3, draw: 1, loss: 0 },
@@ -453,28 +490,37 @@
     return (scoreKey(pair[0]) + scoreKey(pair[1])) / 2;
   }
 
-  function simulatePairing(pairA, pairB, dayNum) {
-    const scoreA = pairA.map(simulateRound);
-    const scoreB = pairB.map(simulateRound);
-    const teamScoreA = Math.min(...scoreA) - SCRAMBLE_DISCOUNT;
-    const teamScoreB = Math.min(...scoreB) - SCRAMBLE_DISCOUNT;
+  function simulatePairing(pairA, pairB, dayNum, par, hcp) {
+    const holesA = pairA.map(p => simulateHoleScores(p, par, hcp));
+    const holesB = pairB.map(p => simulateHoleScores(p, par, hcp));
+    const n = par.length;
+    let holesWonA = 0, holesWonB = 0, halved = 0;
+    for (let i = 0; i < n; i++) {
+      const bestA = Math.min(holesA[0][i], holesA[1][i]);
+      const bestB = Math.min(holesB[0][i], holesB[1][i]);
+      if (bestA < bestB) holesWonA++;
+      else if (bestB < bestA) holesWonB++;
+      else halved++;
+    }
+    const scoreA = holesA.map(h => h.reduce((a, b) => a + b, 0));
+    const scoreB = holesB.map(h => h.reduce((a, b) => a + b, 0));
     const pts = DAY_POINTS[dayNum];
     let pointsA = pts.draw, pointsB = pts.draw;
-    if (teamScoreA < teamScoreB) { pointsA = pts.win; pointsB = pts.loss; }
-    else if (teamScoreB < teamScoreA) { pointsA = pts.loss; pointsB = pts.win; }
-    return { pairA, pairB, scoreA, scoreB, teamScoreA, teamScoreB, pointsA, pointsB };
+    if (holesWonA > holesWonB) { pointsA = pts.win; pointsB = pts.loss; }
+    else if (holesWonB > holesWonA) { pointsA = pts.loss; pointsB = pts.win; }
+    return { pairA, pairB, scoreA, scoreB, holesWonA, holesWonB, halved, pointsA, pointsB };
   }
 
   // Matches pairs of comparable strength across teams (sorted best-to-worst on
   // both sides and zipped) so a team's top pairing doesn't draw the other
   // team's weakest pairing.
-  function simulateDay(teamKey1Pairs, teamKey2Pairs, dayNum) {
+  function simulateDay(teamKey1Pairs, teamKey2Pairs, dayNum, par, hcp) {
     const sortedA = teamKey1Pairs.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
     const sortedB = teamKey2Pairs.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
     const n = Math.min(sortedA.length, sortedB.length);
     const matchups = [];
     for (let i = 0; i < n; i++) {
-      matchups.push(simulatePairing(sortedA[i], sortedB[i], dayNum));
+      matchups.push(simulatePairing(sortedA[i], sortedB[i], dayNum, par, hcp));
     }
     return matchups;
   }
@@ -487,14 +533,15 @@
       <div class="sim-side ${aWin ? "win" : ""}">
         <div class="pill team1">${name1}</div>
         <div style="margin-top:6px;">${m.pairA.map((p, i) => `${p.name} (${m.scoreA[i]})`).join(" &amp; ")}</div>
-        <div class="muted" style="font-size:0.85rem;">Scramble score: ${m.teamScoreA}</div>
       </div>
       <div class="sim-vs">${m.pointsA}&nbsp;&ndash;&nbsp;${m.pointsB}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
         <div class="pill team2">${name2}</div>
         <div style="margin-top:6px;">${m.pairB.map((p, i) => `${p.name} (${m.scoreB[i]})`).join(" &amp; ")}</div>
-        <div class="muted" style="font-size:0.85rem;">Scramble score: ${m.teamScoreB}</div>
       </div>
+    </div>
+    <div class="muted" style="font-size:0.85rem; text-align:center; margin-top:4px;">
+      Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
     </div>`;
   }
 
@@ -507,8 +554,9 @@
     if (!allPairingsComplete()) return;
     const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
-    const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1);
-    const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2);
+    const hayward = HI_DATA.courses.hayward, bigFish = HI_DATA.courses.bigFish;
+    const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1, hayward.par, hayward.hcp);
+    const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2, bigFish.par, bigFish.hcp);
 
     let total1 = 0, total2 = 0;
     [day1Matchups, day2Matchups].forEach(matchups => matchups.forEach(m => { total1 += m.pointsA; total2 += m.pointsB; }));
