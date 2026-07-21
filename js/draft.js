@@ -528,20 +528,30 @@
   function pairingHTML(m, name1, name2) {
     const aWin = m.pointsA > m.pointsB;
     const bWin = m.pointsB > m.pointsA;
+    // Points are earned per matchup (day 1 win = 2, day 2 win = 3, draw = 1
+    // each), not a head-to-head score, so show them as "+N" awarded to
+    // whichever side won rather than as a "2 – 0"-style scoreline.
+    const pointsDisplay = aWin ? `+${m.pointsA}`
+      : bWin ? `+${m.pointsB}`
+      : `+${m.pointsA} each`;
+    // Color the points to match whichever team won (var(--team1) green for
+    // Hagan-side, var(--team2) gold for Greenblat-side); a draw stays the
+    // default muted color since there's no winner to color it after.
+    const pointsColor = aWin ? "var(--team1)" : bWin ? "var(--team2)" : "var(--ink-soft)";
     return `
     <div class="sim-pair">
+      <div class="muted" style="grid-column:1/-1; font-size:0.85rem; text-align:center;">
+        Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
+      </div>
       <div class="sim-side ${aWin ? "win" : ""}">
         <div class="pill team1">${name1}</div>
         <div style="margin-top:6px;">${m.pairA.map((p, i) => `${p.name} (${m.scoreA[i]})`).join(" &amp; ")}</div>
       </div>
-      <div class="sim-vs">${m.pointsA}&nbsp;&ndash;&nbsp;${m.pointsB}</div>
+      <div class="sim-vs" style="color:${pointsColor}; font-weight:700;">${pointsDisplay}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
         <div class="pill team2">${name2}</div>
         <div style="margin-top:6px;">${m.pairB.map((p, i) => `${p.name} (${m.scoreB[i]})`).join(" &amp; ")}</div>
       </div>
-    </div>
-    <div class="muted" style="font-size:0.85rem; text-align:center; margin-top:4px;">
-      Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
     </div>`;
   }
 
