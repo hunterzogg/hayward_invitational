@@ -1,4 +1,4 @@
-/* Hayward Invitational — mock draft + weekend simulation */
+/* Hayward Invitational — final rosters, pairings, and weekend simulation */
 
 (function () {
   const captains = HI_DATA.captains;
@@ -8,18 +8,30 @@
   );
 
   const state = {
-    available: allPlayers.slice().sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999)),
-    team1: [{ ...captainAsPlayer(captains.team1) }],
-    team2: [{ ...captainAsPlayer(captains.team2) }],
-    order: [],      // array of "team1"/"team2" for each remaining pick
-    pickIndex: 0,
-    started: false,
+    team1: [],
+    team2: [],
     // pairings[team][day] = array of confirmed pairs, each pair = [playerObj, playerObj]
     pairings: {
       team1: { day1: [], day2: [] },
       team2: { day1: [], day2: [] },
     },
   };
+
+  // ============ FINAL ROSTERS (2026) ============
+  // The real draft already happened — seed team rosters directly from the
+  // actual results instead of running a live coin-flip/pick-by-pick draft.
+  // See HI_DATA.draftResults2026 in js/data.js.
+  function seedFinalRosters() {
+    function buildRoster(teamKey) {
+      const captain = captainAsPlayer(captains[teamKey]);
+      const picks = HI_DATA.draftResults2026[teamKey]
+        .map(name => allPlayers.find(p => p.name === name))
+        .filter(Boolean);
+      return [captain, ...picks];
+    }
+    state.team1 = buildRoster("team1");
+    state.team2 = buildRoster("team2");
+  }
 
   function captainAsPlayer(c) {
     const p = HI_DATA.players2026.find(pl => pl.name === c.name);
@@ -120,7 +132,13 @@
     });
   }
 
-  // ============ DRAFT ORDER ============
+  // ============ DRAFT ORDER (retained for next year's live draft) ============
+  // Not wired up this year — the 2026 draft already happened and rosters are
+  // seeded directly from HI_DATA.draftResults2026 (see seedFinalRosters()).
+  // Kept here, still fully functional, so a future year's live coin-flip +
+  // snake draft doesn't have to be re-derived from scratch: pass the coin-
+  // flip winner's team key and the number of remaining picks (pool size) to
+  // get back an ordered list of "team1"/"team2" turns.
   function buildSnakeOrder(firstTeam, numPicks) {
     const order = [];
     let round = 0;
@@ -138,31 +156,8 @@
     return order;
   }
 
-  document.getElementById("coin-flip-btn").addEventListener("click", () => {
-    const btn = document.getElementById("coin-flip-btn");
-    btn.disabled = true;
-    let flips = 0;
-    const resultEl = document.getElementById("coin-result");
-    const flipInterval = setInterval(() => {
-      resultEl.textContent = Math.random() < 0.5 ? `Team ${captains.team1.teamLabel}...` : `Team ${captains.team2.teamLabel}...`;
-      flips++;
-      if (flips > 8) {
-        clearInterval(flipInterval);
-        const first = Math.random() < 0.5 ? "team1" : "team2";
-        const firstLabel = first === "team1" ? captains.team1.teamLabel : captains.team2.teamLabel;
-        resultEl.textContent = `Team ${firstLabel} picks first!`;
-        state.order = buildSnakeOrder(first, state.available.length);
-        state.started = true;
-        document.getElementById("draft-section").style.display = "";
-        renderAll();
-        document.getElementById("draft-section").scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 120);
-  });
-
-  // ============ DRAFT RENDER ============
+  // ============ ROSTER RENDER ============
   function teamPanelHTML(teamKey) {
-    const c = teamKey === "team1" ? captains.team1 : captains.team2;
     const roster = state[teamKey];
     const label = teamKey === "team1" ? "Team " + captains.team1.teamLabel : "Team " + captains.team2.teamLabel;
     const rows = roster.map(p => `
@@ -175,73 +170,10 @@
       <ul class="roster-list">${rows}</ul>`;
   }
 
-  function currentTeam() {
-    return state.order[state.pickIndex];
-  }
-
-  function draftComplete() {
-    return state.order.length > 0 && state.pickIndex >= state.order.length;
-  }
-
-  function renderTurnBanner() {
-    const el = document.getElementById("turn-banner");
-    if (draftComplete()) {
-      el.textContent = "Draft complete! Now set your pairings below.";
-      el.className = "turn-banner t1";
-      document.getElementById("pairings-section").style.display = "";
-      document.getElementById("simulate-cta").style.display = "";
-      renderAllPairingPanels();
-      return;
-    }
-    const team = currentTeam();
-    const label = team === "team1" ? captains.team1.teamLabel : captains.team2.teamLabel;
-    el.textContent = `On the clock: Team ${label} (Pick ${state.pickIndex + 1} of ${state.order.length})`;
-    el.className = "turn-banner " + (team === "team1" ? "t1" : "t2");
-  }
-
-  function renderPool() {
-    const ul = document.getElementById("pool-list");
-    const draftEnabled = state.pickIndex < state.order.length;
-    ul.innerHTML = state.available.map(p => `
-      <li>
-        <span><strong>#${p.rank ?? "—"}</strong> &nbsp;${p.name} <span class="pool-meta">${p.avgAll != null ? "avg " + p.avgAll : "no data"}</span></span>
-        <button class="draft-btn" data-name="${p.name}" ${draftEnabled ? "" : "disabled"}>Draft</button>
-      </li>`).join("");
-    ul.querySelectorAll(".draft-btn").forEach(btn => {
-      btn.addEventListener("click", () => draftPlayer(btn.getAttribute("data-name")));
-    });
-  }
-
-  function renderAll() {
+  function renderRosters() {
     document.getElementById("team1-panel").innerHTML = teamPanelHTML("team1");
     document.getElementById("team2-panel").innerHTML = teamPanelHTML("team2");
-    renderTurnBanner();
-    renderPool();
   }
-
-  function draftPlayer(name) {
-    if (state.pickIndex >= state.order.length) return;
-    const idx = state.available.findIndex(p => p.name === name);
-    if (idx === -1) return;
-    const [player] = state.available.splice(idx, 1);
-    const team = currentTeam();
-    state[team].push(player);
-    state.pickIndex++;
-    renderAll();
-    if (draftComplete()) {
-      document.getElementById("pairings-section").scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }
-
-  document.getElementById("autodraft-btn").addEventListener("click", () => {
-    while (state.pickIndex < state.order.length && state.available.length) {
-      const player = state.available.shift();
-      state[currentTeam()].push(player);
-      state.pickIndex++;
-    }
-    renderAll();
-    document.getElementById("pairings-section").scrollIntoView({ behavior: "smooth", block: "start" });
-  });
 
   // ============ TIERS ============
   // Top 4 (best avg score), Bottom 4 (worst avg score), everyone else = Wild Cards.
@@ -324,6 +256,20 @@
     // are still valid (they were valid when made); no cascade needed.
   }
 
+  // Team Hagan (team1) is 9 players (odd), so on any given day one player
+  // would otherwise sit out. Instead, the captain can pick a player to play
+  // as their own scramble partner (self-pair) for that specific day — this
+  // is a per-day choice, just like a normal pairing, so a different player
+  // can shoot twice on Day 1 than on Day 2. Only offered for team1: rosters
+  // are finalized this year, so this isn't generalized to "whichever team
+  // is odd" (Team Greenblat is 10 and never needs it).
+  function pairSelf(teamKey, day, name) {
+    const unpaired = unpairedPlayers(teamKey, day);
+    const player = unpaired.find(p => p.name === name);
+    if (!player) return;
+    addPair(teamKey, day, player, player);
+  }
+
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -395,17 +341,25 @@
     const playerButtons = unpaired.map(p => {
       const isSelected = selPlayer && p.name === selPlayer.name;
       const disabled = selPlayer && !isSelected && !canPair(teamKey, day, selPlayer, p);
+      // Team Hagan only (9 players, odd) — lets a player shoot the round
+      // twice (self-pair) instead of sitting out, chosen per day.
+      const shootTwiceBtn = teamKey === "team1"
+        ? `<button type="button" class="shoot-twice-mini" data-team="${teamKey}" data-day="${day}" data-name="${p.name}" title="${p.name} shoots twice">2&times;</button>`
+        : "";
       return `
-        <button type="button" class="pair-player-btn ${isSelected ? "selected" : ""}"
-          data-team="${teamKey}" data-day="${day}" data-name="${p.name}" ${disabled ? "disabled" : ""}>
-          <span>${p.name}${p.isCaptain ? " (C)" : ""} ${tierBadge(tierOf.get(p.name))}</span>
-          <span class="pool-meta">${p.avgAll != null ? p.avgAll : "—"}</span>
-        </button>`;
+        <div class="pair-pool-item">
+          <button type="button" class="pair-player-btn ${isSelected ? "selected" : ""}"
+            data-team="${teamKey}" data-day="${day}" data-name="${p.name}" ${disabled ? "disabled" : ""}>
+            <span class="pair-player-name">${p.name}${p.isCaptain ? " (C)" : ""}</span>
+            <span class="pair-player-meta">${tierBadge(tierOf.get(p.name))}<span class="pool-meta">${p.avgAll != null ? p.avgAll : "—"}</span></span>
+          </button>
+          ${shootTwiceBtn}
+        </div>`;
     }).join("");
 
     const pairRows = pairs.map((pr, i) => `
       <li class="confirmed-pair-row">
-        <span>${pr[0].name} &amp; ${pr[1].name}</span>
+        <span>${pr[0].name === pr[1].name ? `${pr[0].name} &mdash; Shooting Twice` : `${pr[0].name} &amp; ${pr[1].name}`}</span>
         <button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>
       </li>`).join("");
 
@@ -419,6 +373,7 @@
       ${unpaired.length > 1 ? `<div class="text-center pairing-autobtn"><button type="button" class="btn-outline" style="background:transparent;border:1px solid var(--masters-green);color:var(--masters-green-dark);padding:6px 16px;border-radius:999px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" data-autopair-team="${teamKey}" data-autopair-day="${day}">Auto-Pair</button></div>` : ""}
       ${pairs.length ? `<ul class="confirmed-pairs">${pairRows}</ul>` : ""}
       ${unpaired.length > 1 ? `<div class="pair-pool">${playerButtons}</div>` : ""}
+      ${teamKey === "team1" && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a player to have them shoot twice instead of pairing up.</p>` : ""}
       ${sitOutNote}
     `;
   }
@@ -431,11 +386,23 @@
     el.querySelectorAll(".pair-player-btn").forEach(btn => {
       btn.addEventListener("click", () => onPlayerClick(btn.getAttribute("data-team"), Number(btn.getAttribute("data-day")), btn.getAttribute("data-name")));
     });
+    el.querySelectorAll(".shoot-twice-mini").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const teamKey = btn.getAttribute("data-team");
+        const day = Number(btn.getAttribute("data-day"));
+        pairSelf(teamKey, day, btn.getAttribute("data-name"));
+        renderPairingPanel(teamKey, day);
+        renderOtherDayPanelIfNeeded(teamKey, day);
+        updateSimulateGate();
+      });
+    });
     el.querySelectorAll(".unpair-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        removePair(btn.getAttribute("data-team"), Number(btn.getAttribute("data-day")), Number(btn.getAttribute("data-idx")));
-        renderPairingPanel(btn.getAttribute("data-team"), Number(btn.getAttribute("data-day")));
-        renderOtherDayPanelIfNeeded(btn.getAttribute("data-team"), Number(btn.getAttribute("data-day")));
+        const teamKey = btn.getAttribute("data-team");
+        const day = Number(btn.getAttribute("data-day"));
+        removePair(teamKey, day, Number(btn.getAttribute("data-idx")));
+        renderPairingPanel(teamKey, day);
+        renderOtherDayPanelIfNeeded(teamKey, day);
         updateSimulateGate();
       });
     });
@@ -578,21 +545,26 @@
     // Hagan-side, var(--team2) gold for Greenblat-side); a draw stays the
     // default muted color since there's no winner to color it after.
     const pointsColor = aWin ? "var(--team1)" : bWin ? "var(--team2)" : "var(--ink-soft)";
+    const isShootTwiceA = m.pairA[0].name === m.pairA[1].name;
+    const isShootTwiceB = m.pairB[0].name === m.pairB[1].name;
+    const soloLines = (pair, scores, isShootTwice) => isShootTwice
+      ? `<div>${pair[0].name} (Round 1: ${scores[0]})</div><div>${pair[1].name} (Round 2: ${scores[1]})</div>`
+      : pair.map((p, i) => `<div>${p.name} (solo pace ${scores[i]})</div>`).join("");
     return `
     <div class="sim-pair">
       <div class="muted" style="grid-column:1/-1; font-size:0.85rem; text-align:center;">
         Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
       </div>
       <div class="sim-side ${aWin ? "win" : ""}">
-        <div class="pill team1">${name1}</div>
+        <div class="pill team1">${name1}${isShootTwiceA ? " — Shooting Twice" : ""}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreA}</div>
-        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${m.pairA.map((p, i) => `<div>${p.name} (solo pace ${m.scoreA[i]})</div>`).join("")}</div>
+        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairA, m.scoreA, isShootTwiceA)}</div>
       </div>
       <div class="sim-vs" style="color:${pointsColor}; font-weight:700;">${pointsDisplay}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
-        <div class="pill team2">${name2}</div>
+        <div class="pill team2">${name2}${isShootTwiceB ? " — Shooting Twice" : ""}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreB}</div>
-        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${m.pairB.map((p, i) => `<div>${p.name} (solo pace ${m.scoreB[i]})</div>`).join("")}</div>
+        <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairB, m.scoreB, isShootTwiceB)}</div>
       </div>
     </div>`;
   }
@@ -607,8 +579,8 @@
     const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
     const hayward = HI_DATA.courses.hayward, bigFish = HI_DATA.courses.bigFish;
-    const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1, hayward.par, hayward.hcp);
-    const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2, bigFish.par, bigFish.hcp);
+    const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1, bigFish.par, bigFish.hcp);
+    const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2, hayward.par, hayward.hcp);
 
     let total1 = 0, total2 = 0;
     [day1Matchups, day2Matchups].forEach(matchups => matchups.forEach(m => { total1 += m.pointsA; total2 += m.pointsB; }));
@@ -638,8 +610,8 @@
         <p style="color: var(--fairway); font-size:1.1rem;">Final Score: Team ${name1} ${total1} &ndash; Team ${name2} ${total2}</p>
       </div>
       <div class="section" style="margin-top:28px;">
-        ${daySection(day1Matchups, "Day 1 — Hayward Golf Course (2v2 Scramble)", 1)}
-        ${daySection(day2Matchups, "Day 2 — Big Fish Golf Club (2v2 Scramble)", 2)}
+        ${daySection(day1Matchups, "Day 1 — Big Fish Golf Club (2v2 Scramble)", 1)}
+        ${daySection(day2Matchups, "Day 2 — Hayward Golf Course (2v2 Scramble)", 2)}
       </div>
       <div class="text-center">
         <button class="btn btn-secondary" id="resim-btn">Re-run Simulation</button>
@@ -656,4 +628,9 @@
   }
 
   document.getElementById("simulate-btn").addEventListener("click", runSimulation);
+
+  // ============ INIT ============
+  seedFinalRosters();
+  renderRosters();
+  renderAllPairingPanels();
 })();
