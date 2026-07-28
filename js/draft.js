@@ -31,6 +31,10 @@
     }
     state.team1 = buildRoster("team1");
     state.team2 = buildRoster("team2");
+    // M. Hagan always shoots twice on Day 1 — not a choice, fixed in
+    // advance (see the "Shoot Twice" rules note near pairSelf below).
+    const hagan = state.team1[0];
+    state.pairings.team1.day1.push([hagan, hagan]);
   }
 
   function captainAsPlayer(c) {
@@ -63,10 +67,13 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   // Higher-ranked / lower-volatility players get a bigger chance of a hole
-  // landing on their "good" (better-than-expected) side of the distribution.
+  // landing on their "good" (better-than-expected) side of the distribution
+  // — kept deliberately small across the board (max 14%, was 30%) so that a
+  // full-strength good hole, and therefore a new personal best round, stays
+  // rare rather than routine.
   function goodChanceFor(p) {
     const rank = p.rank ?? 15;
-    return clamp(0.30 - (rank - 1) * (0.22 / 19), 0.08, 0.30);
+    return clamp(0.14 - (rank - 1) * (0.10 / 19), 0.04, 0.14);
   }
 
   // Top-ranked players are more consistent round to round (a smaller spread
@@ -78,15 +85,16 @@
     return clamp(0.75 + (rank - 1) * (0.5 / 19), 0.75, 1.25);
   }
 
-  // Right-skewed per-hole noise: deviations worse than expected pass through
-  // in full (this is where most of the spread lives — golfers on this trip
-  // mostly shoot at or below their average), while better-than-expected
-  // deviations are dampened to a small nudge most of the time, except a
-  // goodChance fraction of holes where they pass through in full (an
-  // occasional strong showing, more likely for the top-ranked players).
+  // Heavily right-skewed per-hole noise: deviations worse than expected
+  // pass through at full strength (volatility should mostly push a round
+  // higher, not lower), while better-than-expected deviations are
+  // compressed hard — even the occasional "good" hole (goodChance) only
+  // gets 3/4 strength, and the rest of the time a good deviation is cut to
+  // under half. This keeps rounds well inside a player's normal range on
+  // the good side, so a new personal best stays rare instead of routine.
   function skewedNoise(sd, goodChance) {
     const z = randNormal(0, sd);
-    if (z < 0) return Math.random() < goodChance ? z : z * 0.7;
+    if (z < 0) return Math.random() < goodChance ? z * 0.75 : z * 0.45;
     return z;
   }
 
@@ -111,15 +119,19 @@
     });
 
     // Anchor the round to this player's own realistic history: their actual
-    // best/worst round this season (`low`/`high`) is a far better ceiling
-    // than an abstract statistical bound — someone whose worst round all
-    // year is 93 shouldn't suddenly blow up into the high 90s just because
-    // the random draw ran hot. Rescale the round's deviations from par
-    // (keeping their hole-to-hole shape) so the total lands inside
-    // [low, high] with a small buffer for a rare new personal best/worst,
-    // falling back to a stats-only bound for players with no logged rounds.
+    // best/worst round this season (`low`/`high`, from column H/G of the
+    // trip workbook's 2026 sheet) is a far better ceiling than an abstract
+    // statistical bound — someone whose worst round all year is 93
+    // shouldn't suddenly blow up into the high 90s just because the random
+    // draw ran hot. Rescale the round's deviations from par (keeping their
+    // hole-to-hole shape) so the total lands inside [low, high] — the low
+    // (personal-best) side has no bonus buffer, so the rescale never pushes
+    // a round below a player's actual best; the high side keeps a small
+    // buffer since a worse-than-ever round is the direction volatility
+    // should push toward. Falls back to a stats-only bound for players
+    // with no logged rounds.
     const rawTotal = rawHoles.reduce((s, x) => s + x, 0);
-    const lo = p.low != null ? p.low - 2 : avg - sd * 2.5;
+    const lo = p.low != null ? p.low : avg - sd * 2.5;
     const hi = p.high != null ? p.high + 2 : avg + sd * 2.5;
     let scale = 1;
     if (rawTotal > hi && rawTotal !== totalPar) scale = (hi - totalPar) / (rawTotal - totalPar);
@@ -238,6 +250,15 @@
     if (a.name === b.name) return false;
     if (!tierCompatible(teamKey, a, b)) return false;
     if (day === 2 && wasDay1Partner(teamKey, a, b)) return false;
+    // Day 2, Team Hagan only: the Wild card (M. Hagan) may not pair with a
+    // Top player. Top (4, even) then always pairs off fully among itself,
+    // which guarantees the day's inevitable leftover comes from Bottom —
+    // see the "only Bottom can shoot twice" rule in settleSoloPlayer.
+    if (teamKey === "team1" && day === 2) {
+      const { tierOf } = tiersFor(teamKey);
+      const ta = tierOf.get(a.name), tb = tierOf.get(b.name);
+      if ((ta === "wild" && tb === "top") || (ta === "top" && tb === "wild")) return false;
+    }
     return true;
   }
 
@@ -257,12 +278,17 @@
   }
 
   // Team Hagan (team1) is 9 players (odd), so on any given day one player
-  // would otherwise sit out. Instead, the captain can pick a player to play
-  // as their own scramble partner (self-pair) for that specific day — this
-  // is a per-day choice, just like a normal pairing, so a different player
-  // can shoot twice on Day 1 than on Day 2. Only offered for team1: rosters
-  // are finalized this year, so this isn't generalized to "whichever team
-  // is odd" (Team Greenblat is 10 and never needs it).
+  // would otherwise sit out. Instead, that player plays as their own
+  // scramble partner (self-pair) for that specific day — a different
+  // player can shoot twice on Day 1 than on Day 2. Only offered for team1:
+  // rosters are finalized this year, so this isn't generalized to
+  // "whichever team is odd" (Team Greenblat is 10 and never needs it).
+  //
+  // Day 1: M. Hagan (the captain) always shoots twice — not a choice, seeded
+  // directly in seedFinalRosters(). Day 2: only a Bottom-tier player may
+  // shoot twice (see the Wild-vs-Top ban in canPair above and the fixup in
+  // settleSoloPlayer below) — this spreads the "extra round" across two
+  // different kinds of players instead of always falling on the same person.
   function pairSelf(teamKey, day, name) {
     const dayPairs = state.pairings[teamKey][`day${day}`];
     if (dayPairs.some(pr => pr[0].name === pr[1].name)) return; // only one shoot-twice player per day
@@ -279,7 +305,26 @@
   // on the same day.
   function settleSoloPlayer(teamKey, day) {
     const unpaired = unpairedPlayers(teamKey, day);
-    if (unpaired.length === 1) pairSelf(teamKey, day, unpaired[0].name);
+    if (unpaired.length !== 1) return;
+    let solo = unpaired[0];
+    // Day 2, Team Hagan: only Bottom can shoot twice, so the captain
+    // (Wild) can never be the one left over. The Wild-vs-Top ban in
+    // canPair guarantees Top always pairs off fully, so if the captain is
+    // the leftover here, all 4 Bottom players must already be paired
+    // with each other — break one such pair, give the captain that slot,
+    // and let the freed Bottom player become the new (valid) leftover.
+    if (teamKey === "team1" && day === 2 && solo.isCaptain) {
+      const dayPairs = state.pairings.team1.day2;
+      const { tierOf } = tiersFor("team1");
+      const idx = dayPairs.findIndex(pr => tierOf.get(pr[0].name) === "bottom" && tierOf.get(pr[1].name) === "bottom");
+      if (idx !== -1) {
+        const [b1, b2] = dayPairs[idx];
+        dayPairs.splice(idx, 1);
+        addPair("team1", 2, solo, b1);
+        solo = b2;
+      }
+    }
+    pairSelf(teamKey, day, solo.name);
   }
 
   function shuffle(arr) {
@@ -355,12 +400,15 @@
     // the button for everyone else on that day rather than allow a second.
     const hasSelfPair = pairs.some(pr => pr[0].name === pr[1].name);
 
+    // Team Hagan only: Day 1's shoot-twice player is fixed (M. Hagan,
+    // seeded in seedFinalRosters — no button at all). Day 2 offers the
+    // button only to Bottom-tier players.
+    const canOfferShootTwice = teamKey === "team1" && day === 2 && !hasSelfPair;
+
     const playerButtons = unpaired.map(p => {
       const isSelected = selPlayer && p.name === selPlayer.name;
       const disabled = selPlayer && !isSelected && !canPair(teamKey, day, selPlayer, p);
-      // Team Hagan only (9 players, odd) — lets a player shoot the round
-      // twice (self-pair) instead of sitting out, chosen per day.
-      const shootTwiceBtn = teamKey === "team1" && !hasSelfPair
+      const shootTwiceBtn = canOfferShootTwice && tierOf.get(p.name) === "bottom"
         ? `<button type="button" class="shoot-twice-mini" data-team="${teamKey}" data-day="${day}" data-name="${p.name}" title="${p.name} shoots twice">2&times;</button>`
         : "";
       return `
@@ -374,11 +422,13 @@
         </div>`;
     }).join("");
 
-    const pairRows = pairs.map((pr, i) => `
-      <li class="confirmed-pair-row">
-        <span>${pr[0].name === pr[1].name ? `${pr[0].name} &mdash; Shooting Twice` : `${pr[0].name} &amp; ${pr[1].name}`}</span>
-        <button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>
-      </li>`).join("");
+    // M. Hagan's Day 1 self-pair is fixed — no unpair control for it.
+    const pairRows = pairs.map((pr, i) => {
+      const isFixedHaganDay1 = teamKey === "team1" && day === 1 && pr[0].name === pr[1].name && pr[0].isCaptain;
+      const label = pr[0].name === pr[1].name ? `${pr[0].name} &mdash; Shooting Twice` : `${pr[0].name} &amp; ${pr[1].name}`;
+      const unpairBtn = isFixedHaganDay1 ? "" : `<button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>`;
+      return `<li class="confirmed-pair-row"><span>${label}</span>${unpairBtn}</li>`;
+    }).join("");
 
     return `
       <h4>${teamLabel}</h4>
@@ -386,7 +436,7 @@
       ${unpaired.length > 1 ? `<div class="text-center pairing-autobtn"><button type="button" class="btn-outline" style="background:transparent;border:1px solid var(--masters-green);color:var(--masters-green-dark);padding:6px 16px;border-radius:999px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" data-autopair-team="${teamKey}" data-autopair-day="${day}">Auto-Pair</button></div>` : ""}
       ${pairs.length ? `<ul class="confirmed-pairs">${pairRows}</ul>` : ""}
       ${unpaired.length > 1 ? `<div class="pair-pool">${playerButtons}</div>` : ""}
-      ${teamKey === "team1" && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a player to have them shoot twice, or leave it be — whoever's left unpaired shoots twice automatically.</p>` : ""}
+      ${canOfferShootTwice && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a Bottom-tier player to have them shoot twice, or leave it be — whoever's left unpaired shoots twice automatically.</p>` : ""}
     `;
   }
 
