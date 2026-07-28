@@ -264,6 +264,8 @@
   // are finalized this year, so this isn't generalized to "whichever team
   // is odd" (Team Greenblat is 10 and never needs it).
   function pairSelf(teamKey, day, name) {
+    const dayPairs = state.pairings[teamKey][`day${day}`];
+    if (dayPairs.some(pr => pr[0].name === pr[1].name)) return; // only one shoot-twice player per day
     const unpaired = unpairedPlayers(teamKey, day);
     const player = unpaired.find(p => p.name === name);
     if (!player) return;
@@ -310,8 +312,14 @@
 
   function autoPairRemaining(teamKey, day) {
     const unpaired = shuffle(unpairedPlayers(teamKey, day));
-    const { pairs } = bestMatching(unpaired, (a, b) => canPair(teamKey, day, a, b));
+    const { pairs, leftover } = bestMatching(unpaired, (a, b) => canPair(teamKey, day, a, b));
     pairs.forEach(([a, b]) => addPair(teamKey, day, a, b));
+    // Team Hagan's odd roster always leaves exactly one player unmatched —
+    // auto-pair has them shoot twice instead of sitting out (mirrors the
+    // manual "2x" button, just applied automatically to whoever's left).
+    if (teamKey === "team1" && leftover.length === 1) {
+      pairSelf(teamKey, day, leftover[0].name);
+    }
     renderPairingPanel(teamKey, day);
     renderOtherDayPanelIfNeeded(teamKey, day);
     updateSimulateGate();
@@ -338,12 +346,16 @@
     const selName = panelSelection[panelKey(teamKey, day)];
     const selPlayer = unpaired.find(p => p.name === selName) || null;
 
+    // Only one player per day can shoot twice — once someone's picked, hide
+    // the button for everyone else on that day rather than allow a second.
+    const hasSelfPair = pairs.some(pr => pr[0].name === pr[1].name);
+
     const playerButtons = unpaired.map(p => {
       const isSelected = selPlayer && p.name === selPlayer.name;
       const disabled = selPlayer && !isSelected && !canPair(teamKey, day, selPlayer, p);
       // Team Hagan only (9 players, odd) — lets a player shoot the round
       // twice (self-pair) instead of sitting out, chosen per day.
-      const shootTwiceBtn = teamKey === "team1"
+      const shootTwiceBtn = teamKey === "team1" && !hasSelfPair
         ? `<button type="button" class="shoot-twice-mini" data-team="${teamKey}" data-day="${day}" data-name="${p.name}" title="${p.name} shoots twice">2&times;</button>`
         : "";
       return `
