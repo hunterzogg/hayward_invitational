@@ -31,10 +31,6 @@
     }
     state.team1 = buildRoster("team1");
     state.team2 = buildRoster("team2");
-    // M. Hagan always shoots twice on Day 1 — not a choice, fixed in
-    // advance (see the "Shoot Twice" rules note near pairSelf below).
-    const hagan = state.team1[0];
-    state.pairings.team1.day1.push([hagan, hagan]);
   }
 
   function captainAsPlayer(c) {
@@ -188,13 +184,20 @@
   }
 
   // ============ TIERS ============
-  // Top 4 (best avg score), Bottom 4 (worst avg score), everyone else = Wild Cards.
-  function computeTiers(roster) {
-    const sorted = roster.slice().sort((a, b) => scoreKey(a) - scoreKey(b));
+  // Top 4 (best avg score), Bottom 4 (worst avg score), everyone else = Wild
+  // Cards — except `forcedWildNames`, who are pulled out of the scoring pool
+  // up front and are always Wild regardless of their avg score (used for
+  // Team Hagan's captain + A. Urban, see FORCED_WILD below). Forcing them out
+  // of the pool before the top/bottom split also means the remaining players
+  // still divide the same way the un-forced roster would have.
+  function computeTiers(roster, forcedWildNames = []) {
+    const forcedWild = roster.filter(p => forcedWildNames.includes(p.name));
+    const scored = roster.filter(p => !forcedWildNames.includes(p.name));
+    const sorted = scored.slice().sort((a, b) => scoreKey(a) - scoreKey(b));
     const n = sorted.length;
     const top = sorted.slice(0, 4);
     const bottom = sorted.slice(Math.max(4, n - 4));
-    const wild = sorted.slice(4, Math.max(4, n - 4));
+    const wild = forcedWild.concat(sorted.slice(4, Math.max(4, n - 4)));
     const tierOf = new Map();
     top.forEach(p => tierOf.set(p.name, "top"));
     wild.forEach(p => tierOf.set(p.name, "wild"));
@@ -202,9 +205,14 @@
     return { top, bottom, wild, tierOf };
   }
 
+  // Team Hagan's captain and A. Urban are always Wild Cards, per the 2026
+  // pairing rules — not left to fall out of the score split like everyone
+  // else. Team Greenblat has no forced Wild Cards.
+  const FORCED_WILD = { team1: ["M. Hagan", "A. Urban"], team2: [] };
+
   const tierCache = { team1: null, team2: null };
   function tiersFor(teamKey) {
-    if (!tierCache[teamKey]) tierCache[teamKey] = computeTiers(state[teamKey]);
+    if (!tierCache[teamKey]) tierCache[teamKey] = computeTiers(state[teamKey], FORCED_WILD[teamKey]);
     return tierCache[teamKey];
   }
 
@@ -230,11 +238,22 @@
     return state[teamKey].filter(p => !paired.has(p.name));
   }
 
-  function tierCompatible(teamKey, a, b) {
+  // Wild Cards play with Top players on Day 1 and with Bottom players on
+  // Day 2 (both teams) — never with another Wild Card, and never with the
+  // tier that's "off" for that day. Top and Bottom never pair with each
+  // other, on either day.
+  function tierCompatible(teamKey, day, a, b) {
     const { tierOf } = tiersFor(teamKey);
     const ta = tierOf.get(a.name), tb = tierOf.get(b.name);
     if (ta === "top" && tb === "bottom") return false;
     if (ta === "bottom" && tb === "top") return false;
+    if (ta === "wild" && tb === "wild") return false;
+    const otherTierFor = (mine, other) => (mine === "wild" ? other : null);
+    const wildPartnerTier = otherTierFor(ta, tb) || otherTierFor(tb, ta);
+    if (wildPartnerTier) {
+      const requiredTier = day === 1 ? "top" : "bottom";
+      if (wildPartnerTier !== requiredTier) return false;
+    }
     return true;
   }
 
@@ -248,18 +267,16 @@
 
   function canPair(teamKey, day, a, b) {
     if (a.name === b.name) return false;
-    if (!tierCompatible(teamKey, a, b)) return false;
+    if (!tierCompatible(teamKey, day, a, b)) return false;
     if (day === 2 && wasDay1Partner(teamKey, a, b)) return false;
-    // Day 2, Team Hagan only: the Wild card (M. Hagan) may not pair with a
-    // Top player. Top (4, even) then always pairs off fully among itself,
-    // which guarantees the day's inevitable leftover comes from Bottom —
-    // see the "only Bottom can shoot twice" rule in settleSoloPlayer.
-    if (teamKey === "team1" && day === 2) {
-      const { tierOf } = tiersFor(teamKey);
-      const ta = tierOf.get(a.name), tb = tierOf.get(b.name);
-      if ((ta === "wild" && tb === "top") || (ta === "top" && tb === "wild")) return false;
-    }
     return true;
+  }
+
+  // Finds Team Hagan's Day 1 shoot-twice player, if one has been chosen —
+  // used to keep Day 2's shoot-twice pick from repeating the same person.
+  function day1ShootTwiceName(teamKey) {
+    const pr = state.pairings[teamKey].day1.find(p => p[0].name === p[1].name);
+    return pr ? pr[0].name : null;
   }
 
   function day1Complete(teamKey) {
@@ -284,11 +301,14 @@
   // rosters are finalized this year, so this isn't generalized to
   // "whichever team is odd" (Team Greenblat is 10 and never needs it).
   //
-  // Day 1: M. Hagan (the captain) always shoots twice — not a choice, seeded
-  // directly in seedFinalRosters(). Day 2: only a Bottom-tier player may
-  // shoot twice (see the Wild-vs-Top ban in canPair above and the fixup in
-  // settleSoloPlayer below) — this spreads the "extra round" across two
-  // different kinds of players instead of always falling on the same person.
+  // Day 1: only a Bottom-tier player may shoot twice — the Wild-with-Top-only
+  // rule in tierCompatible guarantees Top+Wild always pairs off fully, so
+  // Bottom (3, odd) is the only group that can have a leftover. Day 2: a
+  // Bottom-tier or Wild-tier player may shoot twice (see the Wild-vs-Top ban
+  // in tierCompatible and the fixup in settleSoloPlayer below), but never the
+  // same person who already shot twice on Day 1 — this spreads the "extra
+  // round" across two different players instead of it landing on one person
+  // twice.
   function pairSelf(teamKey, day, name) {
     const dayPairs = state.pairings[teamKey][`day${day}`];
     if (dayPairs.some(pr => pr[0].name === pr[1].name)) return; // only one shoot-twice player per day
@@ -307,21 +327,21 @@
     const unpaired = unpairedPlayers(teamKey, day);
     if (unpaired.length !== 1) return;
     let solo = unpaired[0];
-    // Day 2, Team Hagan: only Bottom can shoot twice, so the captain
-    // (Wild) can never be the one left over. The Wild-vs-Top ban in
-    // canPair guarantees Top always pairs off fully, so if the captain is
-    // the leftover here, all 4 Bottom players must already be paired
-    // with each other — break one such pair, give the captain that slot,
-    // and let the freed Bottom player become the new (valid) leftover.
-    if (teamKey === "team1" && day === 2 && solo.isCaptain) {
+    // Day 2, Team Hagan: the Day 2 shoot-twice player can't be the same
+    // person who already shot twice on Day 1. Top always pairs off fully on
+    // Day 2 (Wild only partners Bottom), so if the Day 1 shooter is the one
+    // left over here, some other Wild/Bottom pair must already be confirmed
+    // — break it, give the Day 1 shooter that slot, and let the freed player
+    // become the new (valid) leftover instead.
+    if (teamKey === "team1" && day === 2 && solo.name === day1ShootTwiceName(teamKey)) {
       const dayPairs = state.pairings.team1.day2;
       const { tierOf } = tiersFor("team1");
-      const idx = dayPairs.findIndex(pr => tierOf.get(pr[0].name) === "bottom" && tierOf.get(pr[1].name) === "bottom");
+      const idx = dayPairs.findIndex(pr => tierOf.get(pr[0].name) !== "top");
       if (idx !== -1) {
-        const [b1, b2] = dayPairs[idx];
+        const [x, y] = dayPairs[idx];
         dayPairs.splice(idx, 1);
-        addPair("team1", 2, solo, b1);
-        solo = b2;
+        addPair("team1", 2, solo, x);
+        solo = y;
       }
     }
     pairSelf(teamKey, day, solo.name);
@@ -400,15 +420,19 @@
     // the button for everyone else on that day rather than allow a second.
     const hasSelfPair = pairs.some(pr => pr[0].name === pr[1].name);
 
-    // Team Hagan only: Day 1's shoot-twice player is fixed (M. Hagan,
-    // seeded in seedFinalRosters — no button at all). Day 2 offers the
-    // button only to Bottom-tier players.
-    const canOfferShootTwice = teamKey === "team1" && day === 2 && !hasSelfPair;
+    // Team Hagan only: offered on both days now — Day 1 to Bottom-tier
+    // players, Day 2 to Bottom-tier or Wild-tier players, excluding whoever
+    // already shot twice on Day 1 (see day1ShootTwiceName).
+    const canOfferShootTwice = teamKey === "team1" && !hasSelfPair;
+    const day1Shooter = day === 2 ? day1ShootTwiceName(teamKey) : null;
 
     const playerButtons = unpaired.map(p => {
       const isSelected = selPlayer && p.name === selPlayer.name;
       const disabled = selPlayer && !isSelected && !canPair(teamKey, day, selPlayer, p);
-      const shootTwiceBtn = canOfferShootTwice && tierOf.get(p.name) === "bottom"
+      const tier = tierOf.get(p.name);
+      const shootTwiceEligible = canOfferShootTwice && p.name !== day1Shooter &&
+        (day === 1 ? tier === "bottom" : tier === "bottom" || tier === "wild");
+      const shootTwiceBtn = shootTwiceEligible
         ? `<button type="button" class="shoot-twice-mini" data-team="${teamKey}" data-day="${day}" data-name="${p.name}" title="${p.name} shoots twice">2&times;</button>`
         : "";
       return `
@@ -422,11 +446,9 @@
         </div>`;
     }).join("");
 
-    // M. Hagan's Day 1 self-pair is fixed — no unpair control for it.
     const pairRows = pairs.map((pr, i) => {
-      const isFixedHaganDay1 = teamKey === "team1" && day === 1 && pr[0].name === pr[1].name && pr[0].isCaptain;
       const label = pr[0].name === pr[1].name ? `${pr[0].name} &mdash; Shooting Twice` : `${pr[0].name} &amp; ${pr[1].name}`;
-      const unpairBtn = isFixedHaganDay1 ? "" : `<button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>`;
+      const unpairBtn = `<button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>`;
       return `<li class="confirmed-pair-row"><span>${label}</span>${unpairBtn}</li>`;
     }).join("");
 
@@ -436,7 +458,7 @@
       ${unpaired.length > 1 ? `<div class="text-center pairing-autobtn"><button type="button" class="btn-outline" style="background:transparent;border:1px solid var(--masters-green);color:var(--masters-green-dark);padding:6px 16px;border-radius:999px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" data-autopair-team="${teamKey}" data-autopair-day="${day}">Auto-Pair</button></div>` : ""}
       ${pairs.length ? `<ul class="confirmed-pairs">${pairRows}</ul>` : ""}
       ${unpaired.length > 1 ? `<div class="pair-pool">${playerButtons}</div>` : ""}
-      ${canOfferShootTwice && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a Bottom-tier player to have them shoot twice, or leave it be — whoever's left unpaired shoots twice automatically.</p>` : ""}
+      ${canOfferShootTwice && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to an eligible player to have them shoot twice, or leave it be — whoever's left unpaired shoots twice automatically.</p>` : ""}
     `;
   }
 
