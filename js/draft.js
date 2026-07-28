@@ -272,6 +272,16 @@
     addPair(teamKey, day, player, player);
   }
 
+  // There is no sit-out: whenever pairing (manual or auto) leaves exactly
+  // one player with no partner, they automatically shoot twice instead.
+  // Safe to call after any pairing change — a no-op unless exactly one
+  // player is left, and pairSelf itself guards against a second self-pair
+  // on the same day.
+  function settleSoloPlayer(teamKey, day) {
+    const unpaired = unpairedPlayers(teamKey, day);
+    if (unpaired.length === 1) pairSelf(teamKey, day, unpaired[0].name);
+  }
+
   function shuffle(arr) {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -312,14 +322,9 @@
 
   function autoPairRemaining(teamKey, day) {
     const unpaired = shuffle(unpairedPlayers(teamKey, day));
-    const { pairs, leftover } = bestMatching(unpaired, (a, b) => canPair(teamKey, day, a, b));
+    const { pairs } = bestMatching(unpaired, (a, b) => canPair(teamKey, day, a, b));
     pairs.forEach(([a, b]) => addPair(teamKey, day, a, b));
-    // Team Hagan's odd roster always leaves exactly one player unmatched —
-    // auto-pair has them shoot twice instead of sitting out (mirrors the
-    // manual "2x" button, just applied automatically to whoever's left).
-    if (teamKey === "team1" && leftover.length === 1) {
-      pairSelf(teamKey, day, leftover[0].name);
-    }
+    settleSoloPlayer(teamKey, day);
     renderPairingPanel(teamKey, day);
     renderOtherDayPanelIfNeeded(teamKey, day);
     updateSimulateGate();
@@ -375,18 +380,13 @@
         <button type="button" class="unpair-btn" data-team="${teamKey}" data-day="${day}" data-idx="${i}" title="Unpair">&times;</button>
       </li>`).join("");
 
-    const sitOutNote = unpaired.length === 1
-      ? `<p class="sitout-note">${unpaired[0].name} sits out ${day === 1 ? "Day 1" : "Day 2"}.</p>`
-      : "";
-
     return `
       <h4>${teamLabel}</h4>
       <div class="pair-tier-legend">${tierBadge("top")}${tierBadge("wild")}${tierBadge("bottom")}</div>
       ${unpaired.length > 1 ? `<div class="text-center pairing-autobtn"><button type="button" class="btn-outline" style="background:transparent;border:1px solid var(--masters-green);color:var(--masters-green-dark);padding:6px 16px;border-radius:999px;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:700;" data-autopair-team="${teamKey}" data-autopair-day="${day}">Auto-Pair</button></div>` : ""}
       ${pairs.length ? `<ul class="confirmed-pairs">${pairRows}</ul>` : ""}
       ${unpaired.length > 1 ? `<div class="pair-pool">${playerButtons}</div>` : ""}
-      ${teamKey === "team1" && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a player to have them shoot twice instead of pairing up.</p>` : ""}
-      ${sitOutNote}
+      ${teamKey === "team1" && unpaired.length > 1 ? `<p class="sitout-note">Tap <strong>2&times;</strong> next to a player to have them shoot twice, or leave it be — whoever's left unpaired shoots twice automatically.</p>` : ""}
     `;
   }
 
@@ -438,6 +438,7 @@
       const selPlayer = unpaired.find(p => p.name === selectedName);
       if (selPlayer && canPair(teamKey, day, selPlayer, player)) {
         addPair(teamKey, day, selPlayer, player);
+        settleSoloPlayer(teamKey, day);
       } else {
         panelSelection[key] = name;
       }
@@ -568,22 +569,17 @@
         Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
       </div>
       <div class="sim-side ${aWin ? "win" : ""}">
-        <div class="pill team1">${name1}${isShootTwiceA ? " — Shooting Twice" : ""}</div>
+        <div class="pill team1">${name1}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreA}</div>
         <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairA, m.scoreA, isShootTwiceA)}</div>
       </div>
       <div class="sim-vs" style="color:${pointsColor}; font-weight:700;">${pointsDisplay}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
-        <div class="pill team2">${name2}${isShootTwiceB ? " — Shooting Twice" : ""}</div>
+        <div class="pill team2">${name2}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreB}</div>
         <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairB, m.scoreB, isShootTwiceB)}</div>
       </div>
     </div>`;
-  }
-
-  function sitOutFor(teamKey, day) {
-    const unpaired = unpairedPlayers(teamKey, day);
-    return unpaired.length === 1 ? unpaired[0] : null;
   }
 
   function runSimulation() {
@@ -600,18 +596,12 @@
     const winner = total1 > total2 ? name1 : total2 > total1 ? name2 : "Tie";
 
     function daySection(matchups, label, dayNum) {
-      const sitA = sitOutFor("team1", dayNum);
-      const sitB = sitOutFor("team2", dayNum);
-      const sitOutNote = [];
-      if (sitA) sitOutNote.push(`${sitA.name} (Team ${name1}) sits out`);
-      if (sitB) sitOutNote.push(`${sitB.name} (Team ${name2}) sits out`);
       const pts = DAY_POINTS[dayNum];
       return `
       <div class="sim-day">
         <h3>${label}</h3>
         <p class="muted" style="font-size:0.8rem; margin-top:-4px;">Win = ${pts.win} pts &middot; Draw = ${pts.draw} pt &middot; Loss = ${pts.loss} pts</p>
         ${matchups.map(m => pairingHTML(m, name1, name2)).join("")}
-        ${sitOutNote.length ? `<p class="muted" style="font-size:0.82rem;">${sitOutNote.join(" · ")}</p>` : ""}
       </div>`;
     }
 
