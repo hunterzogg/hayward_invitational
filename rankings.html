@@ -112,12 +112,28 @@ const SORT_METRICS = {
   vibes: { prevKey: "prevVibesRank", better: (a, b) => (b ?? -Infinity) - (a ?? -Infinity) },
 };
 
+// Competition ranking ("1224"): players tied on the metric share the same
+// rank number and are flagged `tied` (rendered as "T2"), and the next
+// distinct value picks back up at rank 4, not 3 — ties don't get "broken"
+// by any secondary sort. Only genuinely equal, non-null values tie; a null
+// metric value (e.g. no rounds logged yet) never ties with anything, even
+// another null.
 function computeRankOf(metricKey) {
   const metric = SORT_METRICS[metricKey];
-  const realPlayers = HI_DATA.players2026
+  const sorted = HI_DATA.players2026
     .slice()
     .sort((a, b) => metric.better(a[metricKey], b[metricKey]));
-  return new Map(realPlayers.map((p, i) => [p.name, i + 1]));
+  const map = new Map();
+  let i = 0;
+  while (i < sorted.length) {
+    let j = i;
+    const v = sorted[i][metricKey];
+    while (v != null && j + 1 < sorted.length && sorted[j + 1][metricKey] === v) j++;
+    const tied = j > i;
+    for (let k = i; k <= j; k++) map.set(sorted[k].name, { rank: i + 1, tied });
+    i = j + 1;
+  }
+  return map;
 }
 
 function rankTierClass(rankNum) {
@@ -151,7 +167,7 @@ function vibesCell(p) {
 
 function changeCell(p, rankMap, prevKey) {
   if (p[prevKey] == null) return `<span class="pill-change new">New</span>`;
-  const delta = p[prevKey] - rankMap.get(p.name);
+  const delta = p[prevKey] - rankMap.get(p.name).rank;
   if (delta === 0) return `<span class="muted">&ndash;</span>`;
   const cls = delta > 0 ? "up" : "down";
   const arrow = delta > 0 ? "&#9650;" : "&#9660;";
@@ -177,10 +193,10 @@ function renderRankings() {
   });
 
   rankBody.innerHTML = rows.map(p => {
-    const rankNum = rankMap.get(p.name) ?? null;
-    const rankCell = rankNum == null
+    const rankInfo = rankMap.get(p.name) ?? null;
+    const rankCell = rankInfo == null
       ? `<span class="rank-badge unranked">&mdash;</span>`
-      : `<span class="rank-badge ${rankTierClass(rankNum)}">${rankNum}</span>`;
+      : `<span class="rank-badge ${rankTierClass(rankInfo.rank)}">${rankInfo.tied ? "T" : ""}${rankInfo.rank}</span>`;
     return `<tr>
       <td>${rankCell}</td>
       <td class="num">${changeCell(p, rankMap, prevKey)}</td>
