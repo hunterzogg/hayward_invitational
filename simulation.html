@@ -37,7 +37,6 @@
     border-radius:6px; border:1px solid rgba(30,45,64,0.2); background:var(--white);
     color: var(--masters-green-dark); max-width:100%;
   }
-  .matchup-unfilled { margin-left:auto; font-size:0.82rem; font-style:italic; }
   .pairing-tier-label { text-transform:uppercase; letter-spacing:.06em; font-size:0.72rem; font-weight:700; color: var(--ink-soft); margin:14px 0 6px; }
   .pairing-tier-label:first-of-type { margin-top:10px; }
   .matchup-panel { border-top: 6px solid var(--masters-green); }
@@ -84,7 +83,7 @@
     <div class="section" id="matchups-section">
       <div class="section-title"><h2>Choose the Matchups</h2></div>
       <div class="card" style="margin-bottom:20px;">
-        <p class="muted" style="margin:0;">Press Auto-Match to generate this year's matchups — tier-locked and matched by strength — then swap in anything you like. See the <a href="rosters.html">Rosters</a> page for full team rosters and who's partnered with whom.</p>
+        <p class="muted" style="margin:0;">Pick each matchup yourself below, or press Auto-Match to fill them all in at once (tier-locked and matched by strength) — then swap in anything you like. See the <a href="rosters.html">Rosters</a> page for full team rosters and who's partnered with whom.</p>
         <div class="text-center" style="margin-top:14px;">
           <button type="button" class="btn btn-secondary" id="auto-match-btn">Auto-Match</button>
         </div>
@@ -100,7 +99,7 @@
     <div class="section text-center" id="simulate-cta">
       <div class="card" id="simulate-card">
         <h2>Ready to Simulate!</h2>
-        <p class="muted" id="simulate-help">Press Auto-Match above to set this year's matchups before simulating.</p>
+        <p class="muted" id="simulate-help">Finish setting every matchup above (Auto-Match or your own picks) before simulating.</p>
         <button class="btn" id="simulate-btn" style="font-size:1.15rem; padding:18px 48px;" disabled>Simulate the Weekend</button>
       </div>
     </div>

@@ -10,33 +10,55 @@
   const captains = PairingsEngine.captains;
   const fixedPairings = PairingsEngine.fixedPairings;
   const fixedPairLabel = PairingsEngine.fixedPairLabel;
-  // Unfilled (null) on a genuinely fresh visit — matchups don't exist
-  // until Auto-Match is pressed. Only non-null here if something was
-  // already saved from an earlier visit/edit on this same page.
-  let matchOrder = PairingsEngine.loadSavedMatchOrder();
+
+  // order[i] === null means that team1 pair's opponent hasn't been chosen
+  // yet — every slot starts this way on a fresh visit.
+  function emptyMatchOrderForTier(tierA) {
+    return new Array(tierA.length).fill(null);
+  }
+  function emptyMatchOrder() {
+    const out = {};
+    ["day1", "day2"].forEach(day => {
+      out[day] = {
+        upper: emptyMatchOrderForTier(fixedPairings.team1[day].upper),
+        bottom: emptyMatchOrderForTier(fixedPairings.team1[day].bottom),
+      };
+    });
+    return out;
+  }
+
+  // Loaded from a prior visit's saved choices if any exist (fully or
+  // partially filled in); otherwise every slot starts unset. matchOrder
+  // itself is always a defined object of the right shape — individual
+  // slots, not the whole thing, are what's "unfilled."
+  let matchOrder = PairingsEngine.loadSavedMatchOrder() || emptyMatchOrder();
+
+  function isMatchOrderComplete(order) {
+    return ["day1", "day2"].every(day =>
+      ["upper", "bottom"].every(tier => order[day][tier].every(v => v != null))
+    );
+  }
 
   // ============ MATCHUP CHOOSER ============
   // Lets the user pick which team1 pair faces which team2 pair, within a
   // tier, on top of the fixed pairings2026 partnerships (those stay
   // read-only on the Rosters page — this only reorders who plays whom).
-  // Stored as a permutation (matchOrder) so an edit is always a swap,
-  // never a partial/duplicate state — that's what makes the tier-lock and
+  // Every row is always a <select> — manually pickable from the start, no
+  // Auto-Match required — defaulting to an unselected placeholder while
+  // that slot is null. Stored as a permutation-in-progress (matchOrder) so
+  // an edit is always a swap between whichever two rows hold a value,
+  // never a duplicate assignment — that's what makes the tier-lock and
   // one-to-one constraints impossible to violate rather than something to
-  // check for. Every change is saved to localStorage so a page reload or
-  // later visit picks it back up. Starts unfilled (matchOrder === null):
-  // each row shows "Not yet matched" instead of a dropdown until
-  // Auto-Match generates the tier-locked, strength-matched starting point
-  // — after that, individual matchups can still be swapped freely.
+  // check for, even while some slots are still unset. Every change is
+  // saved to localStorage so a page reload or later visit picks it back
+  // up. Auto-Match (below) fills every slot at once, tier-locked and
+  // matched by strength, and can also be used to reset after manual
+  // swaps.
   function matchupRowHTML(day, tier, i, pairA, tierB, order) {
-    if (!order) {
-      return `
-        <li class="matchup-row">
-          <span class="pill team1">${fixedPairLabel(pairA)}</span>
-          <span class="matchup-vs">vs</span>
-          <span class="muted matchup-unfilled">Not yet matched</span>
-        </li>`;
-    }
-    const options = tierB.map((pairB, j) =>
+    const placeholder = order[i] == null
+      ? `<option value="" selected disabled>Select opponent&hellip;</option>`
+      : "";
+    const options = placeholder + tierB.map((pairB, j) =>
       `<option value="${j}" ${order[i] === j ? "selected" : ""}>${fixedPairLabel(pairB)}</option>`
     ).join("");
     return `
@@ -52,7 +74,7 @@
     const tierA = fixedPairings.team1[day][tier];
     const tierB = fixedPairings.team2[day][tier];
     if (!tierA.length) return "";
-    const order = matchOrder ? matchOrder[day][tier] : null;
+    const order = matchOrder[day][tier];
     const rows = tierA.map((pairA, i) => matchupRowHTML(day, tier, i, pairA, tierB, order)).join("");
     return `<p class="pairing-tier-label">${label}</p><ul class="matchup-rows">${rows}</ul>`;
   }
@@ -78,8 +100,10 @@
     renderMatchupPanel("day2");
   }
 
-  // Swaps two team1 rows' opponents so `order` stays a permutation at every
-  // step: whoever currently has newIdx trades with row i's old value.
+  // Whoever currently holds newIdx (if anyone — a still-unset slot holds
+  // nobody) trades with row i's old value (which may itself be null,
+  // simply un-setting that row back to a placeholder). This keeps every
+  // tier's assignment duplicate-free at every step, partial or complete.
   function onMatchupChange(day, tier, i, newIdx) {
     const order = matchOrder[day][tier];
     const oldIdx = order[i];
@@ -89,13 +113,14 @@
     order[i] = newIdx;
     PairingsEngine.saveMatchOrder(matchOrder);
     renderMatchupPanel(day);
+    updateSimulateGate();
   }
 
-  // Generates the matchups per the site's matchup guidelines — tier-locked
+  // Fills every slot per the site's matchup guidelines — tier-locked
   // (Upper only ever faces Upper, Bottom only ever faces Bottom) and
   // matched by comparable strength within each tier — same algorithm
-  // whether this is the very first fill or a later reset back to it after
-  // manual swaps.
+  // whether this is the first fill or a later reset back to it after
+  // manual picks.
   function autoMatch() {
     matchOrder = PairingsEngine.computeDefaultMatchOrder();
     PairingsEngine.saveMatchOrder(matchOrder);
@@ -106,19 +131,20 @@
   const autoMatchBtn = document.getElementById("auto-match-btn");
   if (autoMatchBtn) autoMatchBtn.addEventListener("click", autoMatch);
 
-  // Simulate can't run until matchups exist — disabled on a fresh unfilled
-  // visit, enabled the moment Auto-Match has been pressed (or a saved
-  // matchOrder was loaded).
+  // Simulate can't run until every matchup is set — disabled while any
+  // slot is still unassigned, whether that's a totally fresh visit or a
+  // manual pick left half-finished; enabled the moment every slot has a
+  // value, via Auto-Match, manual picks, or a mix of both.
   function updateSimulateGate() {
     const btn = document.getElementById("simulate-btn");
     const help = document.getElementById("simulate-help");
     if (!btn) return;
-    if (matchOrder) {
+    if (isMatchOrderComplete(matchOrder)) {
       btn.disabled = false;
       if (help) help.textContent = "Run this year's matchups through a simulated weekend and see who takes the Cup.";
     } else {
       btn.disabled = true;
-      if (help) help.textContent = "Press Auto-Match above to set this year's matchups before simulating.";
+      if (help) help.textContent = "Finish setting every matchup above (Auto-Match or your own picks) before simulating.";
     }
   }
 
@@ -368,7 +394,7 @@
   }
 
   function runSimulation() {
-    if (!matchOrder) return; // guards the disabled-button state above
+    if (!isMatchOrderComplete(matchOrder)) return; // guards the disabled-button state above
     const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
     const hayward = HI_DATA.courses.hayward, bigFish = HI_DATA.courses.bigFish;
