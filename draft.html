@@ -59,6 +59,25 @@
     .pairing-panel { padding:14px; }
   }
 
+  /* ---- Matchup chooser ---- */
+  .matchup-rows { list-style:none; margin:0; padding:0; }
+  .matchup-row {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:7px 10px; background:rgba(30,45,64,0.06); border-radius:6px;
+    margin-bottom:6px; font-size:0.85rem;
+  }
+  .matchup-vs { color: var(--ink-soft); font-size:0.75rem; text-transform:uppercase; letter-spacing:.05em; }
+  .matchup-select {
+    margin-left:auto; font-family:inherit; font-size:0.82rem; padding:6px 10px;
+    border-radius:6px; border:1px solid rgba(30,45,64,0.2); background:var(--white);
+    color: var(--masters-green-dark); max-width:100%;
+  }
+  @media (max-width: 480px) {
+    .matchup-row { flex-direction:column; align-items:stretch; }
+    .matchup-select { margin-left:0; width:100%; }
+    .matchup-vs { text-align:center; }
+  }
+
   /* ---- Simulate CTA ---- */
   #simulate-card {
     background: linear-gradient(160deg, var(--masters-green-dark), var(--masters-green-mid));
@@ -126,6 +145,22 @@
         <div class="card pairing-panel" id="pair-team1-day2"></div>
         <div class="card pairing-panel team2" id="pair-team2-day2"></div>
       </div>
+    </div>
+
+    <div class="section" id="matchups-section">
+      <div class="section-title"><h2>Choose the Matchups</h2></div>
+      <div class="card" style="margin-bottom:20px;">
+        <p class="muted" style="margin:0;">Pick which pair from each team faces off, tier by tier — starts out matched by strength, swap in anything you like.</p>
+        <div class="text-center" style="margin-top:14px;">
+          <button type="button" class="btn btn-secondary" id="reset-matchups-btn">Reset to Auto-Match</button>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px;">Day 1 — Big Fish Golf Club</h3>
+      <div class="card matchup-panel" id="matchups-day1"></div>
+
+      <h3 style="margin:28px 0 14px;">Day 2 — Hayward Golf Course</h3>
+      <div class="card matchup-panel" id="matchups-day2"></div>
     </div>
 
     <div class="section text-center" id="simulate-cta">

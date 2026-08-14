@@ -633,6 +633,103 @@
     document.getElementById("pair-team2-day2").innerHTML = fixedPairingPanelHTML("team2", "day2");
   }
 
+  // ============ MATCHUP CHOOSER ============
+  // Lets the user pick which team1 pair faces which team2 pair, within a
+  // tier, on top of the fixed pairings2026 partnerships (those stay
+  // read-only — this only reorders who plays whom). Defaults to the same
+  // strength-sorted zip matchDayByTier used to do automatically; stored as
+  // a permutation (matchOrder) so an edit is always a swap, never a
+  // partial/duplicate state — that's what makes the tier-lock and
+  // one-to-one constraints impossible to violate rather than something to
+  // check for.
+
+  // order[i] = index into tierB that tierA[i] (team1's fixed pair order)
+  // faces, replicating today's sort-both-sides-by-strength-and-zip default.
+  function defaultMatchOrderForTier(tierA, tierB) {
+    const idxA = tierA.map((_, i) => i).sort((i, j) => pairStrength(tierA[i]) - pairStrength(tierA[j]));
+    const idxB = tierB.map((_, i) => i).sort((i, j) => pairStrength(tierB[i]) - pairStrength(tierB[j]));
+    const order = new Array(tierA.length);
+    idxA.forEach((origIdx, rank) => { order[origIdx] = idxB[rank]; });
+    return order;
+  }
+
+  function computeDefaultMatchOrder() {
+    const out = {};
+    ["day1", "day2"].forEach(day => {
+      out[day] = {
+        upper: defaultMatchOrderForTier(fixedPairings.team1[day].upper, fixedPairings.team2[day].upper),
+        bottom: defaultMatchOrderForTier(fixedPairings.team1[day].bottom, fixedPairings.team2[day].bottom),
+      };
+    });
+    return out;
+  }
+
+  // Populated during INIT (after fixedPairings is ready) — see bottom of file.
+  let matchOrder = null;
+
+  function matchupRowHTML(day, tier, i, pairA, tierB, order) {
+    const options = tierB.map((pairB, j) =>
+      `<option value="${j}" ${order[i] === j ? "selected" : ""}>${fixedPairLabel(pairB)}</option>`
+    ).join("");
+    return `
+      <li class="matchup-row">
+        <span class="pill team1">${fixedPairLabel(pairA)}</span>
+        <span class="matchup-vs">vs</span>
+        <select class="matchup-select" data-day="${day}" data-tier="${tier}" data-idx="${i}"
+          ${tierB.length <= 1 ? "disabled" : ""}>${options}</select>
+      </li>`;
+  }
+
+  function matchupTierHTML(day, tier, label) {
+    const tierA = fixedPairings.team1[day][tier];
+    const tierB = fixedPairings.team2[day][tier];
+    const order = matchOrder[day][tier];
+    if (!tierA.length) return "";
+    const rows = tierA.map((pairA, i) => matchupRowHTML(day, tier, i, pairA, tierB, order)).join("");
+    return `<p class="pairing-tier-label">${label}</p><ul class="matchup-rows">${rows}</ul>`;
+  }
+
+  function renderMatchupPanel(day) {
+    const el = document.getElementById(`matchups-${day}`);
+    if (!el) return;
+    el.innerHTML = matchupTierHTML(day, "upper", "Upper Tier") + matchupTierHTML(day, "bottom", "Bottom Tier");
+    el.querySelectorAll(".matchup-select").forEach(sel => {
+      sel.addEventListener("change", () => {
+        onMatchupChange(
+          sel.getAttribute("data-day"),
+          sel.getAttribute("data-tier"),
+          Number(sel.getAttribute("data-idx")),
+          Number(sel.value)
+        );
+      });
+    });
+  }
+
+  function renderAllMatchupPanels() {
+    renderMatchupPanel("day1");
+    renderMatchupPanel("day2");
+  }
+
+  // Swaps two team1 rows' opponents so `order` stays a permutation at every
+  // step: whoever currently has newIdx trades with row i's old value.
+  function onMatchupChange(day, tier, i, newIdx) {
+    const order = matchOrder[day][tier];
+    const oldIdx = order[i];
+    if (oldIdx === newIdx) return;
+    const j = order.findIndex((v, idx) => idx !== i && v === newIdx);
+    if (j !== -1) order[j] = oldIdx;
+    order[i] = newIdx;
+    renderMatchupPanel(day);
+  }
+
+  function resetMatchups() {
+    matchOrder = computeDefaultMatchOrder();
+    renderAllMatchupPanels();
+  }
+
+  const resetMatchupsBtn = document.getElementById("reset-matchups-btn");
+  if (resetMatchupsBtn) resetMatchupsBtn.addEventListener("click", resetMatchups);
+
   // ============ SIMULATION ============
   // Scramble match play: each teammate plays every hole, the team's score on
   // that hole is the better (lower) of the two, and whichever team wins more
@@ -676,21 +773,17 @@
     return { pairA, pairB, scoreA, scoreB, teamScoreA, teamScoreB, holesWonA, holesWonB, halved, pointsA, pointsB };
   }
 
-  // Matches pairs of comparable strength within a tier (sorted best-to-worst
-  // on both sides and zipped) so a team's stronger pairing in a tier doesn't
-  // draw the other team's weakest pairing in that same tier. Upper and
-  // Bottom are matched separately (not against each other) since that's how
-  // the real 2026 pairings are grouped — see fixedPairings above.
-  function matchDayByTier(pairsA, pairsB, dayNum, par, hcp) {
-    function zipTier(tierA, tierB) {
-      const sortedA = tierA.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
-      const sortedB = tierB.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
-      const n = Math.min(sortedA.length, sortedB.length);
-      const matchups = [];
-      for (let i = 0; i < n; i++) matchups.push(simulatePairing(sortedA[i], sortedB[i], dayNum, par, hcp));
-      return matchups;
+  // Matches pairs within a tier according to `order` (order.upper[i] /
+  // order.bottom[i] = index into pairsB's same tier that pairsA's tier-index
+  // i faces) — built either by defaultMatchOrderForTier (strength-sorted
+  // zip) or by the user's own choices in the Matchup Chooser. Upper and
+  // Bottom are always matched separately, never against each other — order
+  // only ever contains same-tier indices by construction.
+  function matchDayByTier(pairsA, pairsB, order, dayNum, par, hcp) {
+    function zipTier(tierA, tierB, tierOrder) {
+      return tierA.map((pairA, i) => simulatePairing(pairA, tierB[tierOrder[i]], dayNum, par, hcp));
     }
-    return [...zipTier(pairsA.upper, pairsB.upper), ...zipTier(pairsA.bottom, pairsB.bottom)];
+    return [...zipTier(pairsA.upper, pairsB.upper, order.upper), ...zipTier(pairsA.bottom, pairsB.bottom, order.bottom)];
   }
 
   function pairingHTML(m, name1, name2) {
@@ -717,13 +810,13 @@
         Holes won: ${m.holesWonA}&nbsp;&ndash;&nbsp;${m.holesWonB}${m.halved ? ` (${m.halved} halved)` : ""}
       </div>
       <div class="sim-side ${aWin ? "win" : ""}">
-        <div class="pill team1">${name1}</div>
+        <div class="pill team1">Team ${name1}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreA}</div>
         <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairA, m.scoreA, isShootTwiceA)}</div>
       </div>
       <div class="sim-vs" style="color:${pointsColor}; font-weight:700;">${pointsDisplay}</div>
       <div class="sim-side ${bWin ? "win" : ""}">
-        <div class="pill team2">${name2}</div>
+        <div class="pill team2">Team ${name2}</div>
         <div style="font-size:1.3rem; font-weight:700; margin-top:6px;">${m.teamScoreB}</div>
         <div class="muted" style="font-size:0.78rem; margin-top:2px;">${soloLines(m.pairB, m.scoreB, isShootTwiceB)}</div>
       </div>
@@ -734,8 +827,8 @@
     const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
     const hayward = HI_DATA.courses.hayward, bigFish = HI_DATA.courses.bigFish;
-    const day1Matchups = matchDayByTier(fixedPairings.team1.day1, fixedPairings.team2.day1, 1, bigFish.par, bigFish.hcp);
-    const day2Matchups = matchDayByTier(fixedPairings.team1.day2, fixedPairings.team2.day2, 2, hayward.par, hayward.hcp);
+    const day1Matchups = matchDayByTier(fixedPairings.team1.day1, fixedPairings.team2.day1, matchOrder.day1, 1, bigFish.par, bigFish.hcp);
+    const day2Matchups = matchDayByTier(fixedPairings.team1.day2, fixedPairings.team2.day2, matchOrder.day2, 2, hayward.par, hayward.hcp);
 
     let total1 = 0, total2 = 0;
     [day1Matchups, day2Matchups].forEach(matchups => matchups.forEach(m => { total1 += m.pointsA; total2 += m.pointsB; }));
@@ -783,4 +876,6 @@
   renderRosters();
   fixedPairings = resolveFixedPairings();
   renderFixedPairings();
+  matchOrder = computeDefaultMatchOrder();
+  renderAllMatchupPanels();
 })();
