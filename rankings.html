@@ -21,8 +21,10 @@
       <a href="index.html">Home</a>
       <a href="captains.html">Captains</a>
       <a href="courses.html">Courses</a>
+      <a href="history.html">History</a>
       <a href="rankings.html" class="active">Power Rankings</a>
-      <a href="draft.html">Weekend Preview</a>
+      <a href="rosters.html">Rosters</a>
+      <a href="simulation.html">Simulation</a>
     </nav>
   </div>
 </header>
@@ -61,36 +63,9 @@
         </table>
       </div>
       <p class="muted" style="font-size:0.82rem; margin-top:10px;">Volatility = high score minus low score this season. "Form" shows every logged round this year, oldest to newest. "Vibes" is a purely subjective 0&ndash;10 rating, not derived from performance. "Recent Change" is movement in the power rankings (among currently-participating players) since the last time this data was published. "Avg (All)" and "Vibes" are sortable &mdash; click either header.</p>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><h2>Multi-Year Trend</h2></div>
-      <div class="table-wrap">
-        <table id="trend-table">
-          <thead>
-            <tr><th>Player</th><th class="num">2024 Avg</th><th class="num">2025 Avg</th><th class="num">2026 Avg</th><th>Trend</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><h2>Career Legacy Records</h2></div>
-      <p class="muted">All-time records since the Invitational began in 2024, from the tournament's historical archive. Covers 2024–2025 only, so newer players show 0 years played.</p>
-      <div class="table-wrap">
-        <table id="legacy-table">
-          <thead>
-            <tr><th>Player</th><th class="num">Years</th><th class="num">Titles</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">Win %</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><h2>Past Finals</h2></div>
-      <div class="grid-2" id="past-results"></div>
+      <p class="text-center" style="margin-top:18px;">
+        <a href="history.html">See multi-year trends, career records, and past finals &rarr;</a>
+      </p>
     </div>
 
   </div>
@@ -253,69 +228,6 @@ colToggleBtn.addEventListener("click", () => {
 
 updateSortIndicators();
 renderRankings();
-
-const trendBody = document.querySelector("#trend-table tbody");
-Object.keys(HI_DATA.historicalAvg).forEach(name => {
-  const t = HI_DATA.historicalAvg[name];
-  const vals = [t.y2024, t.y2025, t.y2026].filter(v => v != null);
-  let arrow = "";
-  if (vals.length >= 2) {
-    const delta = vals[vals.length - 1] - vals[0];
-    arrow = delta < 0
-      ? `<span style="color:var(--masters-green);">▼ improving (${Math.abs(delta).toFixed(1)})</span>`
-      : delta > 0
-        ? `<span style="color:var(--gold-dark);">▲ trending up (${delta.toFixed(1)})</span>`
-        : `<span class="muted">steady</span>`;
-  } else {
-    arrow = `<span class="muted">—</span>`;
-  }
-  trendBody.innerHTML += `<tr>
-    <td><strong>${name}</strong></td>
-    <td class="num">${t.y2024 ?? "—"}</td>
-    <td class="num">${t.y2025 ?? "—"}</td>
-    <td class="num">${t.y2026 ?? "—"}</td>
-    <td>${arrow}</td>
-  </tr>`;
-});
-
-const legacyBody = document.querySelector("#legacy-table tbody");
-HI_DATA.legacyRecords
-  .slice()
-  .sort((a,b) => b.wins - a.wins || b.championships - a.championships)
-  .forEach(r => {
-    legacyBody.innerHTML += `<tr>
-      <td><strong>${r.name}</strong></td>
-      <td class="num">${r.years}</td>
-      <td class="num">${r.championships}</td>
-      <td class="num">${r.wins}</td>
-      <td class="num">${r.draws}</td>
-      <td class="num">${r.losses}</td>
-      <td class="num">${r.winPct}</td>
-    </tr>`;
-  });
-
-const pastRoot = document.getElementById("past-results");
-HI_DATA.pastResults.forEach(res => {
-  const teamAWin = res.winner === "team1";
-  pastRoot.innerHTML += `
-  <div class="card">
-    <h3>${res.title} (${res.year})</h3>
-    <p class="muted" style="margin-top:-6px;">${res.day1.course} &rarr; ${res.day2.course}</p>
-    <table>
-      <tr><th></th><th>Captain</th><th class="num">Score</th></tr>
-      <tr style="${teamAWin ? 'font-weight:700;' : ''}">
-        <td><span class="pill team1">Team 1</span></td>
-        <td>${res.captains.team1}</td>
-        <td class="num">${res.finalScore.team1}</td>
-      </tr>
-      <tr style="${!teamAWin ? 'font-weight:700;' : ''}">
-        <td><span class="pill team2">Team 2</span></td>
-        <td>${res.captains.team2}</td>
-        <td class="num">${res.finalScore.team2}</td>
-      </tr>
-    </table>
-  </div>`;
-});
 </script>
 
 </body>

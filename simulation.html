@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulation — Hayward Invitational</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .sim-day { margin-bottom: 26px; }
+  .sim-pair { display:grid; grid-template-columns: 1fr auto 1fr; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid rgba(30,45,64,0.08); }
+  .sim-side { padding:10px 14px; border-radius:8px; }
+  .sim-side.win { background: rgba(30,45,64,0.09); font-weight:700; }
+  .sim-vs { text-align:center; color:var(--ink-soft); font-size:0.8rem; }
+  .winner-banner { text-align:center; padding:34px; border-radius: var(--radius); color:var(--white); background: linear-gradient(160deg, var(--masters-green-dark), var(--masters-green-mid)); box-shadow: var(--shadow); }
+  .winner-banner h2 { color: var(--gold-light); font-size: 2.1rem; }
+
+  /* ---- Simulate CTA ---- */
+  #simulate-card {
+    background: linear-gradient(160deg, var(--masters-green-dark), var(--masters-green-mid));
+    color: var(--fairway);
+    box-shadow: 0 0 0 3px var(--gold), var(--shadow);
+  }
+  #simulate-card h2 { color: var(--white); }
+  #simulate-card #simulate-help { color: var(--fairway); }
+  #simulate-card #simulate-help a { color: var(--gold-light); }
+
+  /* ---- Matchup chooser ---- */
+  .matchup-rows { list-style:none; margin:0; padding:0; }
+  .matchup-row {
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:7px 10px; background:rgba(30,45,64,0.06); border-radius:6px;
+    margin-bottom:6px; font-size:0.85rem;
+  }
+  .matchup-vs { color: var(--ink-soft); font-size:0.75rem; text-transform:uppercase; letter-spacing:.05em; }
+  .matchup-select {
+    margin-left:auto; font-family:inherit; font-size:0.82rem; padding:6px 10px;
+    border-radius:6px; border:1px solid rgba(30,45,64,0.2); background:var(--white);
+    color: var(--masters-green-dark); max-width:100%;
+  }
+  .matchup-unfilled { margin-left:auto; font-size:0.82rem; font-style:italic; }
+  .pairing-tier-label { text-transform:uppercase; letter-spacing:.06em; font-size:0.72rem; font-weight:700; color: var(--ink-soft); margin:14px 0 6px; }
+  .pairing-tier-label:first-of-type { margin-top:10px; }
+  .matchup-panel { border-top: 6px solid var(--masters-green); }
+  @media (max-width: 480px) {
+    .matchup-row { flex-direction:column; align-items:stretch; }
+    .matchup-select { margin-left:0; width:100%; }
+    .matchup-vs { text-align:center; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a class="brand" href="index.html">
+      <img src="img/logo.jpg" alt="Hayward Invitational League Logo">
+      <span class="brand-text">
+        <span class="kicker">Est. 2024</span>
+        <span class="title">Hayward Invitational</span>
+      </span>
+    </a>
+    <nav class="main-nav">
+      <a href="index.html">Home</a>
+      <a href="captains.html">Captains</a>
+      <a href="courses.html">Courses</a>
+      <a href="history.html">History</a>
+      <a href="rankings.html">Power Rankings</a>
+      <a href="rosters.html">Rosters</a>
+      <a href="simulation.html" class="active">Simulation</a>
+    </nav>
+  </div>
+</header>
+
+<section class="page-hero">
+  <div class="container">
+    <h1>Simulate the Weekend</h1>
+    <p>Choose the matchups, then run the 2026 pairings through a simulated weekend.</p>
+  </div>
+</section>
+
+<main>
+  <div class="container">
+
+    <div class="section" id="matchups-section">
+      <div class="section-title"><h2>Choose the Matchups</h2></div>
+      <div class="card" style="margin-bottom:20px;">
+        <p class="muted" style="margin:0;">Press Auto-Match to generate this year's matchups — tier-locked and matched by strength — then swap in anything you like. See the <a href="rosters.html">Rosters</a> page for full team rosters and who's partnered with whom.</p>
+        <div class="text-center" style="margin-top:14px;">
+          <button type="button" class="btn btn-secondary" id="auto-match-btn">Auto-Match</button>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px;">Day 1 — Big Fish Golf Club</h3>
+      <div class="card matchup-panel" id="matchups-day1"></div>
+
+      <h3 style="margin:28px 0 14px;">Day 2 — Hayward Golf Course</h3>
+      <div class="card matchup-panel" id="matchups-day2"></div>
+    </div>
+
+    <div class="section text-center" id="simulate-cta">
+      <div class="card" id="simulate-card">
+        <h2>Ready to Simulate!</h2>
+        <p class="muted" id="simulate-help">Press Auto-Match above to set this year's matchups before simulating.</p>
+        <button class="btn" id="simulate-btn" style="font-size:1.15rem; padding:18px 48px;" disabled>Simulate the Weekend</button>
+      </div>
+    </div>
+
+    <div class="section" id="sim-results" style="display:none;"></div>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <p>Hayward Invitational &middot; <span class="gold-text">Big Fish Golf Club</span> &amp; <span class="gold-text">Hayward Golf Course</span> &middot; Hayward, WI</p>
+  </div>
+</footer>
+
+<script src="js/data.js"></script>
+<script src="js/pairings-engine.js"></script>
+<script src="js/simulate.js"></script>
+
+</body>
+</html>
