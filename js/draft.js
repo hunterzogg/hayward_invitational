@@ -183,6 +183,16 @@
     document.getElementById("team2-panel").innerHTML = teamPanelHTML("team2");
   }
 
+  // ============ ARCHIVED — interactive pairing-picker engine (2026) ============
+  // 2026's pairings were set directly by the captains ahead of the trip (see
+  // HI_DATA.pairings2026 in js/data.js) rather than chosen on the site, so
+  // this whole tier/pairing/auto-pair engine is retired for this year — see
+  // "2026 FIXED PAIRINGS" further down for what actually renders and feeds
+  // the simulation now. Kept here, still fully functional, in case a future
+  // year goes back to letting captains build pairings interactively on the
+  // page (same treatment as buildSnakeOrder above for the live draft).
+  // Nothing in this block is called anywhere below.
+  //
   // ============ TIERS ============
   // Top 4 (best avg score), Bottom 4 (worst avg score), everyone else = Wild
   // Cards — except `forcedWildNames`, who are pulled out of the scoring pool
@@ -559,6 +569,69 @@
       help.textContent = "Complete all four pairing panels above to unlock the simulation.";
     }
   }
+  // ============ END ARCHIVED interactive pairing-picker engine ============
+
+  // ============ 2026 FIXED PAIRINGS ============
+  // Captains set these ahead of the trip (HI_DATA.pairings2026) — the site
+  // just resolves the names to player objects and renders them read-only,
+  // grouped the same "Upper Tier"/"Bottom Tier" way as the source graphic.
+  // This is also how the simulation decides matchups: Upper plays Upper and
+  // Bottom plays Bottom, each side matched by comparable strength within its
+  // tier (see matchDayByTier below) — same fairness goal the old cross-team
+  // strength-sort had, just scoped per tier since that's how the real
+  // pairings are already grouped.
+  function resolvePair(teamKey, names) {
+    const roster = state[teamKey];
+    return names.map(n => roster.find(p => p.name === n));
+  }
+
+  function resolveFixedPairings() {
+    const out = {};
+    ["team1", "team2"].forEach(teamKey => {
+      out[teamKey] = {};
+      ["day1", "day2"].forEach(day => {
+        const src = HI_DATA.pairings2026[teamKey][day];
+        out[teamKey][day] = {
+          upper: src.upper.map(pair => resolvePair(teamKey, pair)),
+          bottom: src.bottom.map(pair => resolvePair(teamKey, pair)),
+        };
+      });
+    });
+    return out;
+  }
+
+  // Populated during INIT (after seedFinalRosters), not here — resolvePair
+  // needs state.team1/team2 to already be filled in.
+  let fixedPairings = null;
+
+  function fixedPairLabel(pair) {
+    return pair[0].name === pair[1].name
+      ? `${pair[0].name} &mdash; Shooting Twice`
+      : `${pair[0].name} &amp; ${pair[1].name}`;
+  }
+
+  function fixedTierRowsHTML(label, pairs) {
+    if (!pairs.length) return "";
+    const rows = pairs.map(pr => `<li class="confirmed-pair-row"><span>${fixedPairLabel(pr)}</span></li>`).join("");
+    return `<p class="pairing-tier-label">${label}</p><ul class="confirmed-pairs">${rows}</ul>`;
+  }
+
+  function fixedPairingPanelHTML(teamKey, day) {
+    const c = teamKey === "team1" ? captains.team1 : captains.team2;
+    const { upper, bottom } = fixedPairings[teamKey][day];
+    return `
+      <h4>Team ${c.teamLabel}</h4>
+      ${fixedTierRowsHTML("Upper Tier", upper)}
+      ${fixedTierRowsHTML("Bottom Tier", bottom)}
+    `;
+  }
+
+  function renderFixedPairings() {
+    document.getElementById("pair-team1-day1").innerHTML = fixedPairingPanelHTML("team1", "day1");
+    document.getElementById("pair-team2-day1").innerHTML = fixedPairingPanelHTML("team2", "day1");
+    document.getElementById("pair-team1-day2").innerHTML = fixedPairingPanelHTML("team1", "day2");
+    document.getElementById("pair-team2-day2").innerHTML = fixedPairingPanelHTML("team2", "day2");
+  }
 
   // ============ SIMULATION ============
   // Scramble match play: each teammate plays every hole, the team's score on
@@ -603,18 +676,21 @@
     return { pairA, pairB, scoreA, scoreB, teamScoreA, teamScoreB, holesWonA, holesWonB, halved, pointsA, pointsB };
   }
 
-  // Matches pairs of comparable strength across teams (sorted best-to-worst on
-  // both sides and zipped) so a team's top pairing doesn't draw the other
-  // team's weakest pairing.
-  function simulateDay(teamKey1Pairs, teamKey2Pairs, dayNum, par, hcp) {
-    const sortedA = teamKey1Pairs.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
-    const sortedB = teamKey2Pairs.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
-    const n = Math.min(sortedA.length, sortedB.length);
-    const matchups = [];
-    for (let i = 0; i < n; i++) {
-      matchups.push(simulatePairing(sortedA[i], sortedB[i], dayNum, par, hcp));
+  // Matches pairs of comparable strength within a tier (sorted best-to-worst
+  // on both sides and zipped) so a team's stronger pairing in a tier doesn't
+  // draw the other team's weakest pairing in that same tier. Upper and
+  // Bottom are matched separately (not against each other) since that's how
+  // the real 2026 pairings are grouped — see fixedPairings above.
+  function matchDayByTier(pairsA, pairsB, dayNum, par, hcp) {
+    function zipTier(tierA, tierB) {
+      const sortedA = tierA.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
+      const sortedB = tierB.slice().sort((a, b) => pairStrength(a) - pairStrength(b));
+      const n = Math.min(sortedA.length, sortedB.length);
+      const matchups = [];
+      for (let i = 0; i < n; i++) matchups.push(simulatePairing(sortedA[i], sortedB[i], dayNum, par, hcp));
+      return matchups;
     }
-    return matchups;
+    return [...zipTier(pairsA.upper, pairsB.upper), ...zipTier(pairsA.bottom, pairsB.bottom)];
   }
 
   function pairingHTML(m, name1, name2) {
@@ -655,12 +731,11 @@
   }
 
   function runSimulation() {
-    if (!allPairingsComplete()) return;
     const name1 = captains.team1.teamLabel, name2 = captains.team2.teamLabel;
 
     const hayward = HI_DATA.courses.hayward, bigFish = HI_DATA.courses.bigFish;
-    const day1Matchups = simulateDay(state.pairings.team1.day1, state.pairings.team2.day1, 1, bigFish.par, bigFish.hcp);
-    const day2Matchups = simulateDay(state.pairings.team1.day2, state.pairings.team2.day2, 2, hayward.par, hayward.hcp);
+    const day1Matchups = matchDayByTier(fixedPairings.team1.day1, fixedPairings.team2.day1, 1, bigFish.par, bigFish.hcp);
+    const day2Matchups = matchDayByTier(fixedPairings.team1.day2, fixedPairings.team2.day2, 2, hayward.par, hayward.hcp);
 
     let total1 = 0, total2 = 0;
     [day1Matchups, day2Matchups].forEach(matchups => matchups.forEach(m => { total1 += m.pointsA; total2 += m.pointsB; }));
@@ -706,5 +781,6 @@
   // ============ INIT ============
   seedFinalRosters();
   renderRosters();
-  renderAllPairingPanels();
+  fixedPairings = resolveFixedPairings();
+  renderFixedPairings();
 })();

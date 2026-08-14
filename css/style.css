@@ -1,20 +1,25 @@
 :root {
-  --masters-green-dark: #0b3d24;
-  --masters-green: #0f5132;
-  --masters-green-mid: #14603c;
-  --masters-green-light: #2f7d52;
-  --fairway: #e9f2ea;
-  --gold: #d4af37;
-  --gold-light: #e9cc6a;
-  --gold-dark: #a5842a;
-  --cream: #faf6ea;
-  --ink: #1a2620;
-  --ink-soft: #48584f;
+  /* 2026 branding refresh — Deep Navy / Lake Blue / Red / White. Variable
+     names are kept as the old Masters green/gold terms (masters-green-*,
+     gold-*) so every existing var() reference site-wide repoints to the new
+     palette without having to touch each usage; only think of these as
+     "dark", "primary accent", and "pop accent" roles now, not their names. */
+  --masters-green-dark: #1e2d40; /* Deep Navy */
+  --masters-green: #2162f9;      /* Lake Blue */
+  --masters-green-mid: #17253a;  /* Navy-blue gradient midpoint */
+  --masters-green-light: #5c8bfb; /* Lighter Lake Blue tint */
+  --fairway: #e7edf9;            /* Pale blue-white, for light text/tints on dark bg */
+  --gold: #d62828;               /* Red — primary pop accent */
+  --gold-light: #ea6b6b;         /* Lighter red, for text on dark bg */
+  --gold-dark: #a11f1f;          /* Darker red, for hover states */
+  --cream: #ffffff;              /* White */
+  --ink: #1e2d40;                /* Deep Navy body text */
+  --ink-soft: #55677c;           /* Muted navy-gray */
   --white: #ffffff;
-  --team1: #14603c;
-  --team2: #b8860b;
-  --wildcard: #2a6f8e;
-  --shadow: 0 8px 24px rgba(11, 61, 36, 0.15);
+  --team1: #2162f9;   /* Team Hagan — Lake Blue */
+  --team2: #d62828;   /* Team Greenblat — Red */
+  --wildcard: #55677c; /* Neutral slate, distinct from both team colors */
+  --shadow: 0 8px 24px rgba(30, 45, 64, 0.15);
   --radius: 10px;
 }
 
@@ -117,13 +122,13 @@ nav.main-nav a {
 }
 
 nav.main-nav a:hover {
-  background: rgba(212, 175, 55, 0.15);
+  background: rgba(214, 40, 40, 0.15);
   color: var(--gold-light);
 }
 
 nav.main-nav a.active {
   background: var(--gold);
-  color: var(--masters-green-dark);
+  color: var(--white);
   font-weight: 700;
 }
 
@@ -270,7 +275,7 @@ main { padding: 48px 0 80px; }
 
 .card {
   background: var(--white);
-  border: 1px solid rgba(15, 81, 50, 0.12);
+  border: 1px solid rgba(30, 45, 64, 0.12);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 26px;
@@ -289,7 +294,7 @@ main { padding: 48px 0 80px; }
   padding: 12px 26px;
   border-radius: 999px;
   background: var(--gold);
-  color: var(--masters-green-dark);
+  color: var(--white);
   font-weight: 700;
   letter-spacing: 0.03em;
   border: none;
@@ -298,7 +303,7 @@ main { padding: 48px 0 80px; }
   font-size: 0.98rem;
   transition: transform 0.12s, box-shadow 0.12s;
 }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(212,175,55,0.35); color: var(--masters-green-dark); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(214,40,40,0.35); color: var(--white); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-outline {
@@ -306,7 +311,7 @@ main { padding: 48px 0 80px; }
   border: 2px solid var(--gold);
   color: var(--cream);
 }
-.btn-outline:hover { background: rgba(212,175,55,0.12); color: var(--gold-light); }
+.btn-outline:hover { background: rgba(214,40,40,0.12); color: var(--gold-light); }
 
 .btn-secondary {
   background: var(--masters-green);
@@ -320,7 +325,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.94rem; }
 th, td {
   padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid rgba(15,81,50,0.1);
+  border-bottom: 1px solid rgba(30,45,64,0.1);
 }
 
 th {
@@ -332,14 +337,14 @@ th {
   font-weight: 600;
 }
 
-tbody tr:nth-child(even) { background: rgba(15, 81, 50, 0.035); }
-tbody tr:hover { background: rgba(212, 175, 55, 0.09); }
+tbody tr:nth-child(even) { background: rgba(30, 45, 64, 0.035); }
+tbody tr:hover { background: rgba(214, 40, 40, 0.09); }
 
 .table-wrap {
   overflow-x: auto;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  border: 1px solid rgba(15,81,50,0.12);
+  border: 1px solid rgba(30,45,64,0.12);
 }
 .table-wrap table { min-width: 560px; }
 
@@ -413,7 +418,7 @@ th.sortable.sorted .sort-arrow { opacity: 1; color: var(--gold); }
   font-weight: 600;
   cursor: pointer;
 }
-.col-toggle-btn:hover { background: rgba(15,81,50,0.08); }
+.col-toggle-btn:hover { background: rgba(30,45,64,0.08); }
 table .col-extra { display: none; }
 table.expanded .col-extra { display: table-cell; }
 .pill-change.new {
@@ -423,7 +428,7 @@ table.expanded .col-extra { display: table-cell; }
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  background: rgba(15,81,50,0.12);
+  background: rgba(30,45,64,0.12);
   color: var(--masters-green-dark);
 }
 
@@ -440,9 +445,9 @@ table.expanded .col-extra { display: table-cell; }
   font-size: 0.8rem;
 }
 /* Rank tiers: 1-8 top players, 9-12 wildcards, 13-20 bottom players */
-.rank-badge.tier-top { background: var(--gold); color: var(--masters-green-dark); }
+.rank-badge.tier-top { background: var(--gold); color: var(--white); }
 .rank-badge.tier-wild { background: var(--wildcard); color: var(--white); }
-.rank-badge.tier-bottom { background: var(--masters-green); color: var(--gold-light); }
+.rank-badge.tier-bottom { background: var(--masters-green); color: var(--white); }
 .rank-badge.unranked { background: transparent; color: var(--ink-soft); border: 1px dashed var(--ink-soft); }
 
 /* ---------- Footer ---------- */
@@ -464,7 +469,7 @@ footer.site-footer .gold-text { color: var(--gold-light); }
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
-  border: 1px solid rgba(15,81,50,0.12);
+  border: 1px solid rgba(30,45,64,0.12);
 }
 .map-frame iframe, .map-frame img {
   position: absolute;
@@ -487,7 +492,7 @@ footer.site-footer .gold-text { color: var(--gold-light); }
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow);
-  border: 1px solid rgba(15,81,50,0.12);
+  border: 1px solid rgba(30,45,64,0.12);
 }
 .course-gallery img {
   width: 100%;
@@ -511,6 +516,9 @@ footer.site-footer .gold-text { color: var(--gold-light); }
 .rules-list { padding-left: 20px; }
 .rules-list li { margin-bottom: 10px; }
 
+/* ---------- Logo story (home page) ---------- */
+.logo-story-list { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+
 /* ---------- Utility ---------- */
 .text-center { text-align: center; }
 .muted { color: var(--ink-soft); }
@@ -523,5 +531,5 @@ footer.site-footer .gold-text { color: var(--gold-light); }
   letter-spacing: 0.06em;
   font-weight: 700;
 }
-.pill.team1 { background: rgba(20, 96, 60, 0.14); color: var(--team1); }
-.pill.team2 { background: rgba(184, 134, 11, 0.16); color: var(--team2); }
+.pill.team1 { background: rgba(33, 98, 249, 0.14); color: var(--team1); }
+.pill.team2 { background: rgba(214, 40, 40, 0.14); color: var(--team2); }

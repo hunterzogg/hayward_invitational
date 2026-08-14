@@ -41,6 +41,41 @@ const HI_DATA = {
     team2: ["B. Prodahl", "C. Palaia", "L. Goetz", "M. Stover", "C. Musser", "J. Conlin", "L. Ainsworth", "J. Goetz", "H. Zogg"], // Team Greenblat
   },
 
+  // Final 2026 pairings, set directly by each captain ahead of the trip
+  // (from the "2026 Pairings" graphic) — this year's pairings are fixed,
+  // not chosen interactively on the site. See js/draft.js: the old
+  // pairing-picker UI (tiers, Auto-Pair, "2x" shoot-twice buttons) has been
+  // archived/unwired in favor of just simulating these fixed matchups. Each
+  // entry is { tier, pairs }, tier is "upper" or "bottom" (matches the
+  // graphic's "Upper Tier"/"Bottom Tier" grouping and is how cross-team
+  // matchups are made — Upper plays Upper, Bottom plays Bottom, matched by
+  // comparable strength within that tier). A pair is [name, name]; a player
+  // shooting twice (self-pair) is [name, name] with the same name twice —
+  // Team Hagan's 9-player roster is odd, so one player shoots twice each
+  // day (M. Muenchow on Day 1, A. Urban on Day 2).
+  pairings2026: {
+    team1: {
+      day1: {
+        upper: [["G. Prodahl", "D. Goetz"], ["N. Goetz", "J. Olmanson"], ["M. Hagan", "A. Urban"]],
+        bottom: [["J. Pfaffinger", "J. Larson"], ["M. Muenchow", "M. Muenchow"]],
+      },
+      day2: {
+        upper: [["N. Goetz", "D. Goetz"], ["G. Prodahl", "J. Olmanson"]],
+        bottom: [["A. Urban", "A. Urban"], ["J. Larson", "M. Hagan"], ["J. Pfaffinger", "M. Muenchow"]],
+      },
+    },
+    team2: {
+      day1: {
+        upper: [["B. Prodahl", "L. Goetz"], ["E. Greenblat", "M. Stover"], ["C. Palaia", "C. Musser"]],
+        bottom: [["J. Conlin", "H. Zogg"], ["J. Goetz", "L. Ainsworth"]],
+      },
+      day2: {
+        upper: [["B. Prodahl", "M. Stover"], ["C. Palaia", "L. Goetz"]],
+        bottom: [["E. Greenblat", "L. Ainsworth"], ["C. Musser", "H. Zogg"], ["J. Goetz", "J. Conlin"]],
+      },
+    },
+  },
+
   // Current-season (2026) power rankings, pulled from the "2026" sheet's
   // "New Rank" table. Scores are full-round gross scores (18 holes).
   //
